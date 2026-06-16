@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from "react";
-import { Menu, X, User, Heart, Settings, LogOut, ShoppingBag } from "lucide-react";
+import { Menu, X, User, Heart, Settings, LogOut, ShoppingBag, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ActivePage } from "../types";
 import { User as FirebaseUser } from "firebase/auth";
@@ -50,10 +50,11 @@ export default function Header({
           <div className="flex-1 flex justify-start">
             <button
               onClick={() => handleNav("Home")}
-              className="text-2xl md:text-3xl font-serif tracking-widest text-[#2C302E] hover:opacity-80 transition-opacity focus:outline-hidden"
+              className="flex items-center space-x-2 text-2xl md:text-3xl font-serif tracking-widest text-[#2C302E] hover:opacity-80 transition-opacity focus:outline-hidden"
               id="brand-logo"
             >
-              theodor_vintage
+              <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-[#8C624E]" />
+              <span>theodor_vintage</span>
             </button>
           </div>
 
