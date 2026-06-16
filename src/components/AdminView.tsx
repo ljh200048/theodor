@@ -27,16 +27,34 @@ import { collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serv
 import { ref as sRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage, handleFirestoreError, OperationType } from "../firebase";
 import { DEFAULT_PRODUCTS, DEFAULT_SETTINGS } from "../mockData";
+import { User as FirebaseUser } from "firebase/auth";
 
 interface AdminViewProps {
   products: Product[];
   settings: SiteSetting | null;
+  user: FirebaseUser | null;
 }
 
 type AdminTab = "settings" | "products" | "inquiries";
 
-export default function AdminView({ products, settings }: AdminViewProps) {
+export const ADMIN_EMAIL = "lch200048@gmail.com";
+
+export default function AdminView({ products, settings, user }: AdminViewProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>("products");
+  
+  const isAdmin = user?.email === ADMIN_EMAIL;
+
+  if (!isAdmin) {
+    return (
+      <div className="max-w-md mx-auto my-24 text-center space-y-4 p-8 bg-[#FAF7F0] border border-red-200 text-[#2C302E]">
+        <AlertCircle className="w-12 h-12 text-red-600 mx-auto" />
+        <h2 className="text-xl font-serif">접근 권한이 없습니다</h2>
+        <p className="text-xs text-stone-500 font-light">
+          관리자만 이 페이지에 접근하거나 수정할 수 있습니다.
+        </p>
+      </div>
+    );
+  }
 
   // Site setting forms states
   const [heroImg, setHeroImg] = useState(settings?.heroImageUrl || "");
@@ -152,13 +170,18 @@ export default function AdminView({ products, settings }: AdminViewProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!isAdmin) {
+      setUploadError("관리자만 이미지를 업로드할 수 있습니다.");
+      return;
+    }
+
     setUploadingFile(true);
     setUploadError("");
     setUploadSuccess("");
 
     try {
-      // Create path products/ or heroes/
-      const folder = field === "hero" ? "heroes" : "products";
+      // Create path products/ or site/hero/
+      const folder = field === "hero" ? "site/hero" : "products";
       const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "")}`;
       const path = `${folder}/${fileName}`;
       const storageRef = sRef(storage, path);
@@ -168,10 +191,20 @@ export default function AdminView({ products, settings }: AdminViewProps) {
 
       if (field === "hero") {
         setHeroImg(url);
+        // Save to Firestore siteSettings/main IMMEDIATELY
+        const pathSettings = "siteSettings";
+        await setDoc(doc(db, pathSettings, "main"), {
+          heroImageUrl: url,
+          noticeTitle: noticeTitle || DEFAULT_SETTINGS.noticeTitle,
+          noticeText: noticeText || DEFAULT_SETTINGS.noticeText,
+          instagramUrl: instaUrl || DEFAULT_SETTINGS.instagramUrl,
+          contactUrl: contactUrl || DEFAULT_SETTINGS.contactUrl,
+        });
+        setUploadSuccess("메인 이미지가 변경되었습니다.");
       } else {
         setImageUrl(url);
+        setUploadSuccess("이미지 업로드가 성공적으로 완료되었습니다!");
       }
-      setUploadSuccess("이미지 업로드가 성공적으로 완료되었습니다!");
     } catch (err: any) {
       console.error("Storage upload failed:", err);
       setUploadError("이미지 업로드에 실패했습니다. Storage 권한 혹은 규칙을 점검해 주세요.");

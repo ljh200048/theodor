@@ -27,10 +27,14 @@ import SignupView from "./components/SignupView";
 import MyPageView from "./components/MyPageView";
 import AdminView from "./components/AdminView";
 
+export const ADMIN_EMAIL = "lch200048@gmail.com";
+
 export default function App() {
   const [activePage, setActivePage] = useState<ActivePage>("Home");
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   // Firestore Sync States
   const [products, setProducts] = useState<Product[]>([]);
@@ -230,11 +234,11 @@ export default function App() {
           />
         );
       case "Admin":
-        if (!user || user.email !== "lch200048@gmail.com") {
+        if (!isAdmin) {
           setActivePage("Home");
           return null;
         }
-        return <AdminView products={products} settings={settings} />;
+        return <AdminView products={products} settings={settings} user={user} />;
       default:
         return (
           <HomeView
@@ -262,7 +266,7 @@ export default function App() {
         activePage={activePage}
         setActivePage={setActivePage}
         user={user}
-        isAdmin={user?.email === "lch200048@gmail.com"}
+        isAdmin={isAdmin}
         onLogout={handleSignOut}
         setDetailedProductId={setDetailedProductId}
       />
