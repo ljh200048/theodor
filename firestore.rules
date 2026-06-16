@@ -1,0 +1,157 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Catch-all Security Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable global helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedEmail() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && isVerifiedEmail() && request.auth.token.email == "lch200048@gmail.com";
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity validator: Product
+    function isValidProduct(data) {
+      return data.name is string 
+        && data.name.size() > 0 
+        && data.name.size() <= 200 
+        && data.price is number 
+        && data.price >= 0 
+        && data.category is string 
+        && data.category.size() > 0 
+        && data.category.size() <= 100 
+        && data.size is string 
+        && data.size.size() > 0 
+        && data.size.size() <= 50 
+        && data.condition is string 
+        && data.condition.size() > 0 
+        && data.condition.size() <= 100 
+        && data.description is string 
+        && data.description.size() <= 5000 
+        && data.imageUrl is string 
+        && data.imageUrl.size() <= 2000 
+        && data.isSoldOut is bool 
+        && data.isRecommended is bool 
+        && data.createdAt is timestamp;
+    }
+
+    // Entity validator: SiteSetting
+    function isValidSiteSetting(data) {
+      return data.heroImageUrl is string 
+        && data.heroImageUrl.size() <= 2000 
+        && data.noticeTitle is string 
+        && data.noticeTitle.size() <= 200 
+        && data.noticeText is string 
+        && data.noticeText.size() <= 2000 
+        && data.instagramUrl is string 
+        && data.instagramUrl.size() <= 2000 
+        && data.contactUrl is string 
+        && data.contactUrl.size() <= 2000;
+    }
+
+    // Entity validator: Favorite
+    function isValidFavorite(data) {
+      return data.userId is string 
+        && data.userId.size() <= 128 
+        && data.productId is string 
+        && data.productId.size() <= 128 
+        && data.createdAt is timestamp;
+    }
+
+    // Entity validator: Inquiry
+    function isValidInquiry(data) {
+      return data.userId is string 
+        && data.userId.size() <= 128 
+        && data.userEmail is string 
+        && data.userEmail.size() <= 320 
+        && data.userName is string 
+        && data.userName.size() > 0 
+        && data.userName.size() <= 100 
+        && data.title is string 
+        && data.title.size() > 0 
+        && data.title.size() <= 200 
+        && data.message is string 
+        && data.message.size() > 0 
+        && data.message.size() <= 5000 
+        && data.createdAt is timestamp;
+    }
+
+    // ----------------- Collections -----------------
+
+    // Products
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isAdmin() 
+        && isValidId(productId) 
+        && isValidProduct(incoming()) 
+        && incoming().createdAt == request.time;
+      allow update: if isAdmin() 
+        && isValidProduct(incoming()) 
+        && incoming().createdAt == existing().createdAt;
+      allow delete: if isAdmin();
+    }
+
+    // Site Settings (typically document id is 'main')
+    match /siteSettings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin() 
+        && isValidId(settingId) 
+        && isValidSiteSetting(incoming());
+    }
+
+    // Favorites
+    match /favorites/{favoriteId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() 
+        && isValidId(favoriteId) 
+        && isValidFavorite(incoming()) 
+        && incoming().userId == request.auth.uid 
+        && incoming().createdAt == request.time;
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // Inquiries
+    match /inquiries/{inquiryId} {
+      allow get: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() 
+        && isValidId(inquiryId) 
+        && isValidInquiry(incoming()) 
+        && incoming().userId == request.auth.uid 
+        && incoming().createdAt == request.time 
+        && !('reply' in incoming());
+      allow update: if isAdmin() 
+        && incoming().userId == existing().userId 
+        && incoming().userEmail == existing().userEmail 
+        && incoming().userName == existing().userName 
+        && incoming().title == existing().title 
+        && incoming().message == existing().message 
+        && incoming().createdAt == existing().createdAt 
+        && (!('reply' in incoming()) || incoming().reply is string);
+      allow delete: if isAdmin();
+    }
+  }
+}

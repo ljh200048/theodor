@@ -1,0 +1,165 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A curated vintage piece in theodor_vintage",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Product name"
+        },
+        "price": {
+          "type": "number",
+          "description": "Product price in KRW"
+        },
+        "category": {
+          "type": "string",
+          "description": "Product category (e.g., Tops, Bottoms, Outerwear, Accessories)"
+        },
+        "size": {
+          "type": "string",
+          "description": "Product size (e.g., S, M, L, Free)"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Condition status (e.g., S: Mint, A: Great, B: Clean)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the product"
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Firebase Storage image URL"
+        },
+        "isSoldOut": {
+          "type": "boolean",
+          "description": "Whether the product is sold out"
+        },
+        "isRecommended": {
+          "type": "boolean",
+          "description": "Whether this is a recommended top vintage pick"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp or Firestore server timestamp"
+        }
+      },
+      "required": ["name", "price", "category", "size", "condition", "imageUrl", "isSoldOut", "isRecommended"]
+    },
+    "SiteSetting": {
+      "title": "SiteSetting",
+      "description": "Design and content layout controls for the web curation",
+      "type": "object",
+      "properties": {
+        "heroImageUrl": {
+          "type": "string",
+          "description": "Banner hero image URL"
+        },
+        "noticeTitle": {
+          "type": "string",
+          "description": "Headline banner text or alert topic"
+        },
+        "noticeText": {
+          "type": "string",
+          "description": "Paragraph description of current notices"
+        },
+        "instagramUrl": {
+          "type": "string",
+          "description": "Instagram link for the store"
+        },
+        "contactUrl": {
+          "type": "string",
+          "description": "Standard contact link or kakao link"
+        }
+      },
+      "required": ["heroImageUrl", "noticeTitle", "noticeText", "instagramUrl", "contactUrl"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "Member wishlist bookmarking for custom curations",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID of the liking user"
+        },
+        "productId": {
+          "type": "string",
+          "description": "ID of the liked product"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Bookmark timestamp"
+        }
+      },
+      "required": ["userId", "productId"]
+    },
+    "Inquiry": {
+      "title": "Inquiry",
+      "description": "Customer standard inquiries about items or order details",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "User id of the writing member"
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "Writer email address"
+        },
+        "userName": {
+          "type": "string",
+          "description": "Writer display name or custom input signature"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Optional linked product ID"
+        },
+        "productName": {
+          "type": "string",
+          "description": "Optional product name"
+        },
+        "title": {
+          "type": "string",
+          "description": "Inquiry short subject"
+        },
+        "message": {
+          "type": "string",
+          "description": "Inquiry full contents"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Submission timestamp"
+        },
+        "reply": {
+          "type": "string",
+          "description": "Optional staff reply thread"
+        }
+      },
+      "required": ["userId", "userEmail", "userName", "title", "message", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Main collection of theodor_vintage boutique items"
+    },
+    "/siteSettings/{settingId}": {
+      "schema": "SiteSetting",
+      "description": "Banner settings and shop links (typically ID 'main')"
+    },
+    "/favorites/{favoriteId}": {
+      "schema": "Favorite",
+      "description": "Wishlist mapping (bookmarked product and user combinations ID user_product)"
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": "Inquiry",
+      "description": "General customer product double checks and messaging inquiries"
+    }
+  }
+}

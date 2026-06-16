@@ -1,0 +1,6 @@
+{
+  "name": "theodor_vintage",
+  "description": "Curated vintage pieces for your own mood.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
