@@ -29,6 +29,10 @@ export default function LoginView({ setActivePage, onLoginSuccess }: LoginProps)
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = email.trim();
+    
+    console.log("Firebase Project ID:", auth.app?.options?.projectId);
+    console.log("Firebase Auth Domain:", auth.app?.options?.authDomain);
+
     if (!cleanEmail || !password.trim()) {
       setErr("이메일과 비밀번호를 모두 입력해 주세요.");
       return;
@@ -40,8 +44,10 @@ export default function LoginView({ setActivePage, onLoginSuccess }: LoginProps)
       await signInWithEmailAndPassword(auth, cleanEmail, password);
       onLoginSuccess();
     } catch (error: any) {
-      console.error("Login email error code:", error?.code);
-      console.error("Login email error message:", error?.message);
+      console.error("Login Error Code:", error?.code);
+      console.error("Login Error Message:", error?.message);
+      
+      alert(`로그인 실패 - 오류 코드: ${error?.code || 'unknown'}`);
       
       let errMsg = `로그인에 실패하였습니다. (${error?.message || error?.code})`;
       if (error?.code === "auth/user-not-found") {
@@ -54,6 +60,8 @@ export default function LoginView({ setActivePage, onLoginSuccess }: LoginProps)
         errMsg = "이메일 로그인 방식이 비활성화 상태입니다. Firebase 콘솔에서 이메일/비밀번호 로그인을 활성화해 주세요.";
       } else if (error?.code === "auth/invalid-email") {
         errMsg = "올바르지 않은 이메일 형식입니다.";
+      } else if (error?.code === "auth/unauthorized-domain") {
+        errMsg = "허용되지 않은 도메인입니다. Firebase OAuth 승인 도메인 설정을 확인해 주세요.";
       } else if (error?.code === "auth/too-many-requests") {
         errMsg = "너무 많은 로그인 시도가 감지되었습니다. 잠시 후 다시 시도하거나 비밀번호를 재설정해 주세요.";
       }

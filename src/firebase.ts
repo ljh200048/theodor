@@ -14,7 +14,7 @@ const metaEnv = (import.meta as any).env || {};
 const firebaseConfig = {
   apiKey: metaEnv.VITE_FIREBASE_API_KEY || defaultFirebaseConfig.apiKey,
   authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || defaultFirebaseConfig.authDomain,
-  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID, // Strictly use VITE_FIREBASE_PROJECT_ID as requested
+  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || defaultFirebaseConfig.projectId, // Use VITE_FIREBASE_PROJECT_ID or fall back to default project ID
   storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || defaultFirebaseConfig.storageBucket,
   messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || defaultFirebaseConfig.messagingSenderId,
   appId: metaEnv.VITE_FIREBASE_APP_ID || defaultFirebaseConfig.appId,
