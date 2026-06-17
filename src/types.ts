@@ -57,3 +57,16 @@ export type ActivePage =
   | "Signup"
   | "MyPage"
   | "Admin";
+
+export interface InstagramCard {
+  id: string;
+  title: string;
+  tags: string;
+  imageUrl: string;
+  linkUrl: string;
+  order: number;
+  isActive: boolean;
+  createdAt: Timestamp | Date;
+  updatedAt: Timestamp | Date;
+}
+

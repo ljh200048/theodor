@@ -6,11 +6,12 @@
 import React from "react";
 import { ArrowRight, BookOpen, Star, Instagram, Mail, Sparkles, AlertCircle } from "lucide-react";
 import { motion } from "motion/react";
-import { Product, SiteSetting, ActivePage } from "../types";
+import { Product, SiteSetting, ActivePage, InstagramCard } from "../types";
 
 interface HomeViewProps {
   products: Product[];
   settings: SiteSetting | null;
+  instagramCards: InstagramCard[];
   setActivePage: (p: ActivePage) => void;
   setDetailedProductId: (id: string | null) => void;
 }
@@ -18,6 +19,7 @@ interface HomeViewProps {
 export default function HomeView({
   products,
   settings,
+  instagramCards,
   setActivePage,
   setDetailedProductId,
 }: HomeViewProps) {
@@ -35,32 +37,10 @@ export default function HomeView({
   // Recommended Vintage
   const recommended = products.filter((p) => p.isRecommended).slice(0, 4);
 
-  const instagramFeed = [
-    {
-      imageUrl: "https://images.unsplash.com/photo-1544816155-12df9643f363?w=500&auto=format&fit=crop&q=80",
-      tags: "#fabric #warmth",
-    },
-    {
-      imageUrl: "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=500&auto=format&fit=crop&q=80",
-      tags: "#vintage #interior",
-    },
-    {
-      imageUrl: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=500&auto=format&fit=crop&q=80",
-      tags: "#analogue #film",
-    },
-    {
-      imageUrl: "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=500&auto=format&fit=crop&q=80",
-      tags: "#coat #layering",
-    },
-    {
-      imageUrl: "https://images.unsplash.com/photo-1539628390774-c285e6b19a18?w=500&auto=format&fit=crop&q=80",
-      tags: "#archive #story",
-    },
-    {
-      imageUrl: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=500&auto=format&fit=crop&q=80",
-      tags: "#morning #mood",
-    },
-  ];
+  // Filter and sort active cards
+  const activeInstaCards = [...instagramCards]
+    .filter((c) => c.isActive)
+    .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
 
   const viewProduct = (id: string) => {
     setDetailedProductId(id);
@@ -327,11 +307,11 @@ export default function HomeView({
         </div>
 
         <div id="instagram-feed-grid" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {instagramFeed.map((post, idx) => (
+          {activeInstaCards.map((post, idx) => (
             <motion.a
-              key={idx}
+              key={post.id || idx}
               id={`instagram-archive-item-${idx}`}
-              href={instagram}
+              href={post.linkUrl || instagram}
               target="_blank"
               rel="noopener noreferrer"
               initial={{ opacity: 0, y: 15 }}
@@ -342,13 +322,16 @@ export default function HomeView({
             >
               <img
                 src={post.imageUrl}
-                alt={`Instagram vintage mood ${idx + 1}`}
+                alt={post.title || `Instagram vintage mood ${idx + 1}`}
                 className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500 filter brightness-[0.98] contrast-[1.02]"
                 referrerPolicy="no-referrer"
               />
               <div className="absolute inset-0 bg-[#1A3020]/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center p-3 text-center">
                 <Instagram className="w-5 h-5 text-[#FAF7F0] mb-2 transform scale-90 group-hover:scale-100 transition-transform duration-300" />
-                <span className="text-[10px] text-[#FAF7F0]/90 uppercase tracking-widest font-mono font-medium">
+                <span className="text-[10px] text-[#FAF7F0]/90 uppercase tracking-widest font-mono font-medium font-semibold">
+                  {post.title}
+                </span>
+                <span className="text-[9px] text-[#FAF7F0]/80 mt-1 font-sans font-medium line-clamp-1">
                   {post.tags}
                 </span>
                 <span className="text-[9px] text-[#FAF7F0]/50 mt-1">

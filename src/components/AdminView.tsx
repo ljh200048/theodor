@@ -22,24 +22,25 @@ import {
   Loader2,
   User,
 } from "lucide-react";
-import { Product, SiteSetting, Inquiry } from "../types";
+import { Product, SiteSetting, Inquiry, InstagramCard } from "../types";
 import { collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { ref as sRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage, handleFirestoreError, OperationType } from "../firebase";
-import { DEFAULT_PRODUCTS, DEFAULT_SETTINGS } from "../mockData";
+import { DEFAULT_PRODUCTS, DEFAULT_SETTINGS, DEFAULT_INSTAGRAM_CARDS } from "../mockData";
 import { User as FirebaseUser } from "firebase/auth";
 
 interface AdminViewProps {
   products: Product[];
   settings: SiteSetting | null;
+  instagramCards: InstagramCard[];
   user: FirebaseUser | null;
 }
 
-type AdminTab = "settings" | "products" | "inquiries";
+type AdminTab = "settings" | "products" | "inquiries" | "instagram";
 
 export const ADMIN_EMAIL = "lch200048@gmail.com";
 
-export default function AdminView({ products, settings, user }: AdminViewProps) {
+export default function AdminView({ products, settings, instagramCards, user }: AdminViewProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>("products");
   
   const isAdmin = user?.email === ADMIN_EMAIL;
@@ -107,6 +108,18 @@ export default function AdminView({ products, settings, user }: AdminViewProps) 
   const categories = ["Tops", "Dresses", "Outerwear", "Accessories", "Shoes"];
   const conditions = ["S: Mint Condition", "A: Excellent Vintage", "B: Nicely Faded Charm", "C: Heavy Aged Vibe"];
 
+  // Instagram form states
+  const [editingInsta, setEditingInsta] = useState<InstagramCard | null>(null);
+  const [instaTitle, setInstaTitle] = useState("");
+  const [instaTags, setInstaTags] = useState("");
+  const [instaImageUrl, setInstaImageUrl] = useState("");
+  const [instaLinkUrl, setInstaLinkUrl] = useState("");
+  const [instaOrder, setInstaOrder] = useState<number>(1);
+  const [instaIsActive, setInstaIsActive] = useState(true);
+  const [instaFormErr, setInstaFormErr] = useState("");
+  const [instaFormSuccess, setInstaFormSuccess] = useState("");
+  const [instaSaving, setInstaSaving] = useState(false);
+
   // Fetch all user inquiries in system
   useEffect(() => {
     const unsubscribe = onSnapshot(
@@ -166,7 +179,7 @@ export default function AdminView({ products, settings, user }: AdminViewProps) 
   };
 
   // Image Upload helper functions (Storage)
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: "hero" | "product") => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: "hero" | "product" | "instagram") => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -180,8 +193,13 @@ export default function AdminView({ products, settings, user }: AdminViewProps) 
     setUploadSuccess("");
 
     try {
-      // Create path products/ or site/hero/
-      const folder = field === "hero" ? "site/hero" : "products";
+      // Create path products/, site/hero/ or instagramCards/
+      let folder = "products";
+      if (field === "hero") {
+        folder = "site/hero";
+      } else if (field === "instagram") {
+        folder = "instagramCards";
+      }
       const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "")}`;
       const path = `${folder}/${fileName}`;
       const storageRef = sRef(storage, path);
@@ -201,6 +219,9 @@ export default function AdminView({ products, settings, user }: AdminViewProps) 
           contactUrl: contactUrl || DEFAULT_SETTINGS.contactUrl,
         });
         setUploadSuccess("메인 이미지가 변경되었습니다.");
+      } else if (field === "instagram") {
+        setInstaImageUrl(url);
+        setUploadSuccess("인스타그램 카드 이미지 업로드가 성공적으로 완료되었습니다!");
       } else {
         setImageUrl(url);
         setUploadSuccess("이미지 업로드가 성공적으로 완료되었습니다!");
@@ -382,6 +403,117 @@ export default function AdminView({ products, settings, user }: AdminViewProps) 
     }
   };
 
+  const handleSeedInstagramCards = async () => {
+    if (!window.confirm("6개의 기본 인스타그램 무드 카드를 Firestore에 등록하시겠습니까?")) return;
+    const path = "instagramCards";
+    try {
+      for (const card of DEFAULT_INSTAGRAM_CARDS) {
+        await setDoc(doc(db, path, card.id), {
+          title: card.title,
+          tags: card.tags,
+          imageUrl: card.imageUrl,
+          linkUrl: card.linkUrl,
+          order: Number(card.order) || 1,
+          isActive: card.isActive !== false,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      alert("성공적으로 인스타그램 카드 무드 데이터 6종이 시딩되었습니다!");
+    } catch (error) {
+      console.error("Failed seeding instagram cards:", error);
+      alert("인스타그램 시딩 오류가 발생했습니다.");
+    }
+  };
+
+  const startEditInsta = (card: InstagramCard) => {
+    setEditingInsta(card);
+    setInstaTitle(card.title || "");
+    setInstaTags(card.tags || "");
+    setInstaImageUrl(card.imageUrl || "");
+    setInstaLinkUrl(card.linkUrl || "");
+    setInstaOrder(card.order || 1);
+    setInstaIsActive(card.isActive !== false);
+    setInstaFormErr("");
+    setInstaFormSuccess("");
+  };
+
+  const cancelEditInsta = () => {
+    setEditingInsta(null);
+    setInstaTitle("");
+    setInstaTags("");
+    setInstaImageUrl("");
+    setInstaLinkUrl("");
+    setInstaOrder(1);
+    setInstaIsActive(true);
+    setInstaFormErr("");
+    setInstaFormSuccess("");
+  };
+
+  const handleSaveInstaCard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!instaTitle.trim() || !instaImageUrl.trim()) {
+      setInstaFormErr("제목과 이미지는 필수 항목입니다.");
+      return;
+    }
+
+    setInstaSaving(true);
+    setInstaFormErr("");
+    setInstaFormSuccess("");
+
+    const path = "instagramCards";
+
+    try {
+      if (editingInsta) {
+        // Edit existing card
+        const cardRef = doc(db, path, editingInsta.id);
+        await updateDoc(cardRef, {
+          title: instaTitle.trim(),
+          tags: instaTags.trim(),
+          imageUrl: instaImageUrl.trim(),
+          linkUrl: instaLinkUrl.trim(),
+          order: Number(instaOrder) || 1,
+          isActive: instaIsActive,
+          updatedAt: serverTimestamp(),
+        });
+        setInstaFormSuccess("인스타그램 카드가 성공적으로 수정되었습니다.");
+        cancelEditInsta();
+      } else {
+        // Add new card
+        const newId = `insta_${Date.now()}`;
+        const cardRef = doc(db, path, newId);
+        await setDoc(cardRef, {
+          title: instaTitle.trim(),
+          tags: instaTags.trim(),
+          imageUrl: instaImageUrl.trim(),
+          linkUrl: instaLinkUrl.trim(),
+          order: Number(instaOrder) || 1,
+          isActive: instaIsActive,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        setInstaFormSuccess("새 인스타그램 카드가 추가되었습니다.");
+        cancelEditInsta();
+      }
+    } catch (err) {
+      console.error("Save instagram card failed:", err);
+      setInstaFormErr("데이터베이스 저장에 실패했습니다.");
+    } finally {
+      setInstaSaving(false);
+    }
+  };
+
+  const handleDeleteInstaCard = async (id: string) => {
+    if (!window.confirm("정말로 이 인스타그램 카드를 삭제하시겠습니까?")) return;
+    const path = "instagramCards";
+    try {
+      await deleteDoc(doc(db, path, id));
+    } catch (err) {
+      console.error("Delete instagram card failed:", err);
+      alert("인스타그램 카드 삭제에 실패했습니다.");
+    }
+  };
+
   const formattedPrice = (p: number) => {
     return new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW" }).format(p);
   };
@@ -412,6 +544,13 @@ export default function AdminView({ products, settings, user }: AdminViewProps) 
             <Plus className="w-3.5 h-3.5" />
             <span>Seed 6 Demo Products</span>
           </button>
+          <button
+            onClick={handleSeedInstagramCards}
+            className="flex items-center space-x-1 bg-[#8C624E] hover:bg-[#a67b66] text-white px-3.5 py-1.5 text-xs uppercase tracking-wider font-semibold rounded-xs transition-colors cursor-pointer shadow-xs"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Seed 6 Instagram Cards</span>
+          </button>
         </div>
       </div>
 
@@ -426,6 +565,16 @@ export default function AdminView({ products, settings, user }: AdminViewProps) 
           }`}
         >
           Manage Catalogue ({products.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("instagram")}
+          className={`pb-3 text-sm font-medium tracking-wide border-b-2 uppercase focus:outline-hidden ${
+            activeTab === "instagram"
+              ? "border-[#8C624E] text-[#8C624E]"
+              : "border-transparent text-stone-500 hover:text-stone-800"
+          }`}
+        >
+          Instagram Mood Cards ({instagramCards.length})
         </button>
         <button
           onClick={() => setActiveTab("settings")}
@@ -943,6 +1092,217 @@ export default function AdminView({ products, settings, user }: AdminViewProps) 
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* TAB 4: INSTAGRAM MOOD CARDS */}
+      {activeTab === "instagram" && (
+        <div className="space-y-12 animate-fade-in">
+          <div className="border-b border-stone-200 pb-3">
+            <h3 className="text-xl font-serif text-[#2C302E]">Instagram Mood Cards Management</h3>
+            <p className="text-xs text-stone-400 font-light mt-1">
+              홈페이지의 Instagram Mood 섹션에 표시될 이미지 카드를 직접 추가하고 관리합니다.
+            </p>
+          </div>
+
+          <div id="instagram-tab-split-grid" className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            {/* Left Col: Add/Edit Form */}
+            <div className="lg:col-span-1">
+              <form onSubmit={handleSaveInstaCard} className="bg-[#FAF7F0] p-6 border border-[#8C624E]/10 rounded-xs space-y-4 shadow-3xs">
+                <h4 className="text-sm uppercase tracking-widest text-[#8C624E] font-medium border-b border-stone-200 pb-2">
+                  {editingInsta ? "Edit Mood Card" : "Create Mood Card"}
+                </h4>
+
+                {instaFormErr && (
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-xs flex items-center space-x-2 rounded-xs">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{instaFormErr}</span>
+                  </div>
+                )}
+                {instaFormSuccess && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center space-x-2 rounded-xs">
+                    <Check className="w-4 h-4 flex-shrink-0" />
+                    <span>{instaFormSuccess}</span>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase font-bold text-stone-500 block">Title (제목)</label>
+                  <input
+                    type="text"
+                    value={instaTitle}
+                    onChange={(e) => setInstaTitle(e.target.value)}
+                    className="w-full bg-white border border-[#8C624E]/15 rounded-xs px-3 py-2 text-xs focus:outline-[#8C624E]/30"
+                    placeholder="e.g., Warm Autumn Curation"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase font-bold text-stone-500 block">Tags (태그)</label>
+                  <input
+                    type="text"
+                    value={instaTags}
+                    onChange={(e) => setInstaTags(e.target.value)}
+                    className="w-full bg-white border border-[#8C624E]/15 rounded-xs px-3 py-2 text-xs focus:outline-[#8C624E]/30"
+                    placeholder="e.g., #vintage #autumn"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase font-bold text-stone-500 block">Instagram Link URL</label>
+                  <input
+                    type="text"
+                    value={instaLinkUrl}
+                    onChange={(e) => setInstaLinkUrl(e.target.value)}
+                    className="w-full bg-white border border-[#8C624E]/15 rounded-xs px-3 py-2 text-xs focus:outline-[#8C624E]/30"
+                    placeholder="https://instagram.com/p/..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-bold text-stone-500 block">Display Order</label>
+                    <input
+                      type="number"
+                      value={instaOrder}
+                      onChange={(e) => setInstaOrder(Number(e.target.value))}
+                      className="w-full bg-white border border-[#8C624E]/15 rounded-xs px-3 py-2 text-xs focus:outline-[#8C624E]/30"
+                      min={1}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-bold text-stone-500 block">Status (노출 여부)</label>
+                    <select
+                      value={instaIsActive ? "true" : "false"}
+                      onChange={(e) => setInstaIsActive(e.target.value === "true")}
+                      className="w-full bg-white border border-[#8C624E]/15 rounded-xs px-3 py-2 text-xs focus:outline-[#8C624E]/30"
+                    >
+                      <option value="true">Active (노출)</option>
+                      <option value="false">Hidden (비노출)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold text-stone-500 block">Upload Card Image (Storage)</label>
+                  <div className="border-2 border-dashed border-[#8C624E]/20 hover:border-[#8C624E]/50 rounded-xs p-4 text-center transition-colors relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(e, "instagram")}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      disabled={uploadingFile}
+                    />
+                    <div className="space-y-1 text-stone-500">
+                      <UploadCloud className="w-6 h-6 mx-auto text-[#8C624E]/60" />
+                      <p className="text-[10px] font-sans">클릭하여 이미지 파일을 선택하세요</p>
+                      <p className="text-[9px] font-mono text-stone-400">Path: instagramCards/</p>
+                    </div>
+                  </div>
+                  {uploadingFile && (
+                    <p className="text-[10px] text-amber-600 animate-pulse font-mono flex items-center justify-center space-x-1">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Uploading to Storage...</span>
+                    </p>
+                  )}
+                  {instaImageUrl && (
+                    <div className="relative mt-2 p-1 border border-stone-200 bg-white rounded-xs">
+                      <img src={instaImageUrl} alt="Preview" className="w-full aspect-square object-cover rounded-xs font-serif" referrerPolicy="no-referrer" />
+                      <p className="text-[9px] text-stone-400 truncate mt-1 font-mono">{instaImageUrl}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="submit"
+                    disabled={instaSaving || uploadingFile}
+                    className="flex-1 bg-[#1A3020] text-white py-2 text-xs uppercase tracking-widest font-semibold hover:bg-stone-800 disabled:bg-stone-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {instaSaving ? "Saving..." : editingInsta ? "Update Card" : "Add Card"}
+                  </button>
+                  {editingInsta && (
+                    <button
+                      type="button"
+                      onClick={cancelEditInsta}
+                      className="bg-stone-200 text-stone-700 px-3 py-2 text-xs uppercase tracking-wider font-semibold hover:bg-stone-300 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            {/* Right Col: Active Feed List with Actions */}
+            <div className="lg:col-span-2 space-y-4">
+              <h4 className="text-sm uppercase tracking-widest text-[#2C302E] font-bold mb-2 border-b border-stone-200 pb-2">
+                Card Grid Archive ({instagramCards.length})
+              </h4>
+
+              {instagramCards.length === 0 ? (
+                <div className="text-center py-24 bg-white border border-stone-200/50 rounded-xs space-y-4">
+                  <AlertCircle className="w-8 h-8 text-stone-300 mx-auto" />
+                  <p className="text-xs text-stone-400 font-light">등록된 인스타그램 무드 카드가 없습니다.<br />우측 상단의 시드 버튼을 클릭하시어 기본형 데이터 6종을 초기 수집하고 이용하세요.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                  {instagramCards.map((card) => (
+                    <div
+                      key={card.id}
+                      className={`group relative bg-white border rounded-xs shadow-xs overflow-hidden transition-all duration-300 ${
+                        card.isActive ? "border-[#8C624E]/15" : "border-stone-200 opacity-60"
+                      }`}
+                    >
+                      <div className="aspect-square bg-stone-100 overflow-hidden relative">
+                        <img
+                          src={card.imageUrl}
+                          alt={card.title}
+                          className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
+                          referrerPolicy="no-referrer"
+                        />
+                        {!card.isActive && (
+                          <div className="absolute inset-0 bg-stone-900/60 flex items-center justify-center">
+                            <span className="text-[10px] font-mono tracking-widest uppercase text-white font-bold bg-stone-800/80 px-2 py-0.5 rounded-xs">
+                              Hidden
+                            </span>
+                          </div>
+                        )}
+                        <div className="absolute top-2 left-2 bg-stone-900/80 text-white font-mono text-[9px] px-1.5 py-0.5 rounded-sm">
+                          Order: {card.order || 1}
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 space-y-1">
+                        <h5 className="text-xs font-semibold text-[#2C302E] truncate">{card.title}</h5>
+                        <p className="text-[10px] font-mono text-[#8C624E] truncate">{card.tags || "No tags"}</p>
+                        <p className="text-[9px] text-stone-400 truncate" title={card.linkUrl}>
+                          Link: {card.linkUrl ? card.linkUrl : "None"}
+                        </p>
+                      </div>
+
+                      <div className="absolute bottom-2 right-2 flex gap-1 bg-white/95 p-1 rounded-xs border border-stone-200/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <button
+                          onClick={() => startEditInsta(card)}
+                          className="p-1 hover:bg-stone-100 text-stone-600 hover:text-[#8C624E]"
+                          title="Edit Card"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteInstaCard(card.id)}
+                          className="p-1 hover:bg-stone-100 text-stone-600 hover:text-red-500"
+                          title="Delete Card"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
