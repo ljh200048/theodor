@@ -14,7 +14,7 @@ const metaEnv = (import.meta as any).env || {};
 const firebaseConfig = {
   apiKey: metaEnv.VITE_FIREBASE_API_KEY || defaultFirebaseConfig.apiKey,
   authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || defaultFirebaseConfig.authDomain,
-  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || defaultFirebaseConfig.projectId,
+  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID, // Strictly use VITE_FIREBASE_PROJECT_ID as requested
   storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || defaultFirebaseConfig.storageBucket,
   messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || defaultFirebaseConfig.messagingSenderId,
   appId: metaEnv.VITE_FIREBASE_APP_ID || defaultFirebaseConfig.appId,
@@ -23,7 +23,7 @@ const firebaseConfig = {
 // Initialize Firebase app
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase services
+// Initialize Firebase services using standard default database
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);

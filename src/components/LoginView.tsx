@@ -21,9 +21,15 @@ export default function LoginView({ setActivePage, onLoginSuccess }: LoginProps)
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
+  React.useEffect(() => {
+    console.log("Connected Firebase Project ID:", auth.app?.options?.projectId);
+    console.log("Connected Firebase Auth Domain:", auth.app?.options?.authDomain);
+  }, []);
+
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password.trim()) {
       setErr("이메일과 비밀번호를 모두 입력해 주세요.");
       return;
     }
@@ -31,17 +37,25 @@ export default function LoginView({ setActivePage, onLoginSuccess }: LoginProps)
     setLoading(true);
     setErr("");
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      await signInWithEmailAndPassword(auth, cleanEmail, password);
       onLoginSuccess();
     } catch (error: any) {
-      console.error("Login email error:", error);
-      let errMsg = "로그인에 실패했습니다. 이메일 혹은 비밀번호를 다시 확인해 주세요.";
-      if (error.code === "auth/user-not-found") {
+      console.error("Login email error code:", error?.code);
+      console.error("Login email error message:", error?.message);
+      
+      let errMsg = `로그인에 실패하였습니다. (${error?.message || error?.code})`;
+      if (error?.code === "auth/user-not-found") {
         errMsg = "등록되지 않은 사용자입니다. 회원가입을 진행해 주십시오.";
-      } else if (error.code === "auth/wrong-password") {
-        errMsg = "비밀번호가 올바르지 않습니다.";
-      } else if (error.code === "auth/operation-not-allowed") {
-        errMsg = "이메일 로그인 방식이 비활성화 상태입니다. Firebase 콘솔에서 활성화가 필요합니다.";
+      } else if (error?.code === "auth/wrong-password") {
+        errMsg = "비밀번호가 올바르지 않습니다. 다시 입력해 주세요.";
+      } else if (error?.code === "auth/invalid-credential") {
+        errMsg = "이메일 혹은 비밀번호가 올바르지 않습니다. 정확한 로그인 정보를 확인하세요.";
+      } else if (error?.code === "auth/operation-not-allowed") {
+        errMsg = "이메일 로그인 방식이 비활성화 상태입니다. Firebase 콘솔에서 이메일/비밀번호 로그인을 활성화해 주세요.";
+      } else if (error?.code === "auth/invalid-email") {
+        errMsg = "올바르지 않은 이메일 형식입니다.";
+      } else if (error?.code === "auth/too-many-requests") {
+        errMsg = "너무 많은 로그인 시도가 감지되었습니다. 잠시 후 다시 시도하거나 비밀번호를 재설정해 주세요.";
       }
       setErr(errMsg);
     } finally {

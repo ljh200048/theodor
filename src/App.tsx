@@ -26,6 +26,7 @@ import LoginView from "./components/LoginView";
 import SignupView from "./components/SignupView";
 import MyPageView from "./components/MyPageView";
 import AdminView from "./components/AdminView";
+import { DEFAULT_PRODUCTS, DEFAULT_SETTINGS } from "./mockData";
 
 export const ADMIN_EMAIL = "lch200048@gmail.com";
 
@@ -36,9 +37,9 @@ export default function App() {
 
   const isAdmin = user?.email === ADMIN_EMAIL;
 
-  // Firestore Sync States
-  const [products, setProducts] = useState<Product[]>([]);
-  const [settings, setSettings] = useState<SiteSetting | null>(null);
+  // Firestore Sync States initialized with defaults
+  const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
+  const [settings, setSettings] = useState<SiteSetting | null>(DEFAULT_SETTINGS);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [detailedProductId, setDetailedProductId] = useState<string | null>(null);
 
@@ -56,19 +57,25 @@ export default function App() {
     const unsubscribeProducts = onSnapshot(
       collection(db, "products"),
       (snapshot) => {
-        const list: Product[] = [];
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          list.push({
-            id: docSnap.id,
-            ...data,
-            createdAt: data.createdAt ? data.createdAt.toDate() : new Date(),
-          } as Product);
-        });
-        setProducts(list);
+        if (snapshot.empty) {
+          // Fall back to default seeded products if db collection is empty
+          setProducts(DEFAULT_PRODUCTS);
+        } else {
+          const list: Product[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            list.push({
+              id: docSnap.id,
+              ...data,
+              createdAt: data.createdAt ? data.createdAt.toDate() : new Date(),
+            } as Product);
+          });
+          setProducts(list);
+        }
       },
       (error) => {
         console.error("Firestore loading products stream error:", error);
+        setProducts(DEFAULT_PRODUCTS);
       }
     );
 
@@ -78,11 +85,12 @@ export default function App() {
         if (docSnap.exists()) {
           setSettings(docSnap.data() as SiteSetting);
         } else {
-          setSettings(null);
+          setSettings(DEFAULT_SETTINGS);
         }
       },
       (error) => {
         console.error("Firestore loading settings document stream error:", error);
+        setSettings(DEFAULT_SETTINGS);
       }
     );
 
