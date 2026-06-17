@@ -153,5 +153,11 @@ service cloud.firestore {
         && (!('reply' in incoming()) || incoming().reply is string);
       allow delete: if isAdmin();
     }
+
+    // Mood Cards
+    match /moodCards/{cardId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }

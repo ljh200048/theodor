@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Product, SiteSetting, InstagramCard } from "./types";
+import { Product, SiteSetting, MoodCard } from "./types";
 
 export const DEFAULT_SETTINGS: SiteSetting = {
   heroImageUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&q=80",
@@ -94,9 +94,9 @@ export const DEFAULT_PRODUCTS: Product[] = [
   }
 ];
 
-export const DEFAULT_INSTAGRAM_CARDS: InstagramCard[] = [
+export const DEFAULT_MOOD_CARDS: MoodCard[] = [
   {
-    id: "default_insta_1",
+    id: "default_mood_1",
     title: "Warm Fabric Curation",
     tags: "#fabric #warmth",
     imageUrl: "https://images.unsplash.com/photo-1544816155-12df9643f363?w=500&auto=format&fit=crop&q=80",
@@ -107,7 +107,7 @@ export const DEFAULT_INSTAGRAM_CARDS: InstagramCard[] = [
     updatedAt: new Date()
   },
   {
-    id: "default_insta_2",
+    id: "default_mood_2",
     title: "Vintage Interior Mood",
     tags: "#vintage #interior",
     imageUrl: "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=500&auto=format&fit=crop&q=80",
@@ -118,7 +118,7 @@ export const DEFAULT_INSTAGRAM_CARDS: InstagramCard[] = [
     updatedAt: new Date()
   },
   {
-    id: "default_insta_3",
+    id: "default_mood_3",
     title: "Analogue Film Memory",
     tags: "#analogue #film",
     imageUrl: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=500&auto=format&fit=crop&q=80",
@@ -129,7 +129,7 @@ export const DEFAULT_INSTAGRAM_CARDS: InstagramCard[] = [
     updatedAt: new Date()
   },
   {
-    id: "default_insta_4",
+    id: "default_mood_4",
     title: "Layering Warm Coat",
     tags: "#coat #layering",
     imageUrl: "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=500&auto=format&fit=crop&q=80",
@@ -140,7 +140,7 @@ export const DEFAULT_INSTAGRAM_CARDS: InstagramCard[] = [
     updatedAt: new Date()
   },
   {
-    id: "default_insta_5",
+    id: "default_mood_5",
     title: "Vintage Archiving Story",
     tags: "#archive #story",
     imageUrl: "https://images.unsplash.com/photo-1539628390774-c285e6b19a18?w=500&auto=format&fit=crop&q=80",
@@ -151,7 +151,7 @@ export const DEFAULT_INSTAGRAM_CARDS: InstagramCard[] = [
     updatedAt: new Date()
   },
   {
-    id: "default_insta_6",
+    id: "default_mood_6",
     title: "Morning Coffee Mood",
     tags: "#morning #mood",
     imageUrl: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=500&auto=format&fit=crop&q=80",

@@ -12,7 +12,7 @@ import React, { useState, useEffect } from "react";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { collection, onSnapshot, query, where, doc, deleteDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
-import { ActivePage, Product, SiteSetting, Favorite, InstagramCard } from "./types";
+import { ActivePage, Product, SiteSetting, Favorite, MoodCard } from "./types";
 
 // Import Views
 import Header from "./components/Header";
@@ -26,7 +26,7 @@ import LoginView from "./components/LoginView";
 import SignupView from "./components/SignupView";
 import MyPageView from "./components/MyPageView";
 import AdminView from "./components/AdminView";
-import { DEFAULT_PRODUCTS, DEFAULT_SETTINGS, DEFAULT_INSTAGRAM_CARDS } from "./mockData";
+import { DEFAULT_PRODUCTS, DEFAULT_SETTINGS, DEFAULT_MOOD_CARDS } from "./mockData";
 
 export const ADMIN_EMAIL = "lch200048@gmail.com";
 
@@ -40,7 +40,7 @@ export default function App() {
   // Firestore Sync States initialized with defaults
   const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
   const [settings, setSettings] = useState<SiteSetting | null>(DEFAULT_SETTINGS);
-  const [instagramCards, setInstagramCards] = useState<InstagramCard[]>(DEFAULT_INSTAGRAM_CARDS);
+  const [moodCards, setMoodCards] = useState<MoodCard[]>(DEFAULT_MOOD_CARDS);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [detailedProductId, setDetailedProductId] = useState<string | null>(null);
 
@@ -95,13 +95,13 @@ export default function App() {
       }
     );
 
-    const unsubscribeInsta = onSnapshot(
-      collection(db, "instagramCards"),
+    const unsubscribeMood = onSnapshot(
+      collection(db, "moodCards"),
       (snapshot) => {
         if (snapshot.empty) {
-          setInstagramCards(DEFAULT_INSTAGRAM_CARDS);
+          setMoodCards(DEFAULT_MOOD_CARDS);
         } else {
-          const list: InstagramCard[] = [];
+          const list: MoodCard[] = [];
           snapshot.forEach((docSnap) => {
             const data = docSnap.data();
             list.push({
@@ -109,22 +109,22 @@ export default function App() {
               ...data,
               createdAt: data.createdAt ? data.createdAt.toDate() : new Date(),
               updatedAt: data.updatedAt ? data.updatedAt.toDate() : new Date(),
-            } as InstagramCard);
+            } as MoodCard);
           });
           list.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
-          setInstagramCards(list);
+          setMoodCards(list);
         }
       },
       (error) => {
-        console.error("Firestore loading instagramCards stream error:", error);
-        setInstagramCards(DEFAULT_INSTAGRAM_CARDS);
+        console.error("Firestore loading moodCards stream error:", error);
+        setMoodCards(DEFAULT_MOOD_CARDS);
       }
     );
 
     return () => {
       unsubscribeProducts();
       unsubscribeSettings();
-      unsubscribeInsta();
+      unsubscribeMood();
     };
   }, []);
 
@@ -196,7 +196,7 @@ export default function App() {
           <HomeView
             products={products}
             settings={settings}
-            instagramCards={instagramCards}
+            moodCards={moodCards}
             setActivePage={setActivePage}
             setDetailedProductId={setDetailedProductId}
           />
@@ -279,7 +279,7 @@ export default function App() {
           <AdminView
             products={products}
             settings={settings}
-            instagramCards={instagramCards}
+            moodCards={moodCards}
             user={user}
           />
         );
@@ -288,7 +288,7 @@ export default function App() {
           <HomeView
             products={products}
             settings={settings}
-            instagramCards={instagramCards}
+            moodCards={moodCards}
             setActivePage={setActivePage}
             setDetailedProductId={setDetailedProductId}
           />

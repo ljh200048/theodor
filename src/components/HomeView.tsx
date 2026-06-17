@@ -6,12 +6,12 @@
 import React from "react";
 import { ArrowRight, BookOpen, Star, Instagram, Mail, Sparkles, AlertCircle } from "lucide-react";
 import { motion } from "motion/react";
-import { Product, SiteSetting, ActivePage, InstagramCard } from "../types";
+import { Product, SiteSetting, ActivePage, MoodCard } from "../types";
 
 interface HomeViewProps {
   products: Product[];
   settings: SiteSetting | null;
-  instagramCards: InstagramCard[];
+  moodCards: MoodCard[];
   setActivePage: (p: ActivePage) => void;
   setDetailedProductId: (id: string | null) => void;
 }
@@ -19,7 +19,7 @@ interface HomeViewProps {
 export default function HomeView({
   products,
   settings,
-  instagramCards,
+  moodCards,
   setActivePage,
   setDetailedProductId,
 }: HomeViewProps) {
@@ -38,7 +38,7 @@ export default function HomeView({
   const recommended = products.filter((p) => p.isRecommended).slice(0, 4);
 
   // Filter and sort active cards
-  const activeInstaCards = [...instagramCards]
+  const activeMoodCards = [...moodCards]
     .filter((c) => c.isActive)
     .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
 
@@ -307,7 +307,7 @@ export default function HomeView({
         </div>
 
         <div id="instagram-feed-grid" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {activeInstaCards.map((post, idx) => (
+          {activeMoodCards.map((post, idx) => (
             <motion.a
               key={post.id || idx}
               id={`instagram-archive-item-${idx}`}
@@ -328,13 +328,13 @@ export default function HomeView({
               />
               <div className="absolute inset-0 bg-[#1A3020]/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center p-3 text-center">
                 <Instagram className="w-5 h-5 text-[#FAF7F0] mb-2 transform scale-90 group-hover:scale-100 transition-transform duration-300" />
-                <span className="text-[10px] text-[#FAF7F0]/90 uppercase tracking-widest font-mono font-medium font-semibold">
+                <span className="text-[10px] text-[#FAF7F0]/90 uppercase tracking-widest font-mono font-semibold">
                   {post.title}
                 </span>
                 <span className="text-[9px] text-[#FAF7F0]/80 mt-1 font-sans font-medium line-clamp-1">
                   {post.tags}
                 </span>
-                <span className="text-[9px] text-[#FAF7F0]/50 mt-1">
+                <span className="text-[9px] text-[#FAF7F0]/50 mt-1 font-mono tracking-wider">
                   View Card
                 </span>
               </div>

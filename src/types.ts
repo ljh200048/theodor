@@ -58,7 +58,7 @@ export type ActivePage =
   | "MyPage"
   | "Admin";
 
-export interface InstagramCard {
+export interface MoodCard {
   id: string;
   title: string;
   tags: string;
