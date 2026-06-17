@@ -321,7 +321,7 @@ export default function HomeView({
               className="group relative aspect-square bg-[#FAF7F0] overflow-hidden border border-[#8C624E]/5 block rounded-xs shadow-xs hover:shadow-md transition-all duration-300"
             >
               <img
-                src={post.imageUrl}
+                src={post.imageUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&q=80"}
                 alt={post.title || `Instagram vintage mood ${idx + 1}`}
                 className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500 filter brightness-[0.98] contrast-[1.02]"
                 referrerPolicy="no-referrer"

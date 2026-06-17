@@ -39,6 +39,7 @@ interface AdminViewProps {
 type AdminTab = "settings" | "products" | "inquiries" | "moodCards";
 
 export const ADMIN_EMAIL = "lch200048@gmail.com";
+export const IMG_PLACEHOLDER = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&q=80";
 
 export default function AdminView({ products, settings, moodCards, user }: AdminViewProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>("products");
@@ -222,6 +223,19 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
       } else if (field === "moodCards") {
         setMoodImageUrl(url);
         setUploadSuccess("무드 카드 이미지 업로드가 성공적으로 완료되었습니다!");
+        if (editingMood) {
+          const cardId = editingMood.id;
+          const cardRef = doc(db, "moodCards", cardId);
+          await setDoc(cardRef, { 
+            title: moodTitle.trim() || editingMood.title || "",
+            tags: moodTags.trim() || editingMood.tags || "",
+            imageUrl: url || "",
+            linkUrl: moodLinkUrl.trim() || editingMood.linkUrl || "",
+            order: Number(moodOrder) || Number(editingMood.order) || 1,
+            isActive: moodIsActive !== false,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+        }
       } else {
         setImageUrl(url);
         setUploadSuccess("이미지 업로드가 성공적으로 완료되었습니다!");
@@ -1270,7 +1284,7 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
                     >
                       <div className="aspect-square bg-stone-100 overflow-hidden relative">
                         <img
-                          src={card.imageUrl}
+                          src={card.imageUrl || IMG_PLACEHOLDER}
                           alt={card.title}
                           className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
                           referrerPolicy="no-referrer"
