@@ -17,7 +17,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email == "jongminsin81@gmail.com";
+      return isSignedIn() && (request.auth.token.email == "jongminsin81@gmail.com" || request.auth.token.email == "lch200048@gmail.com");
     }
 
     function isValidId(id) {
@@ -110,6 +110,17 @@ service cloud.firestore {
         && data.createdAt is timestamp;
     }
 
+    // Entity validator: EventApplication
+    function isValidEventApplication(data) {
+      return data.userId is string 
+        && data.userEmail is string 
+        && data.name is string 
+        && data.phone is string 
+        && data.size is string 
+        && data.eventTitle is string 
+        && data.createdAt is timestamp;
+    }
+
     // ----------------- Collections -----------------
 
     // Products
@@ -170,6 +181,17 @@ service cloud.firestore {
     match /moodCards/{cardId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // Event Applications
+    match /eventApplications/{applicationId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() 
+        && isValidId(applicationId) 
+        && isValidEventApplication(incoming()) 
+        && incoming().userId == request.auth.uid 
+        && incoming().createdAt == request.time;
+      allow delete: if isAdmin();
     }
   }
 }

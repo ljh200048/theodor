@@ -28,14 +28,14 @@ import MyPageView from "./components/MyPageView";
 import AdminView from "./components/AdminView";
 import { DEFAULT_PRODUCTS, DEFAULT_SETTINGS, DEFAULT_MOOD_CARDS } from "./mockData";
 
-export const ADMIN_EMAIL = "jongminsin81@gmail.com";
+export const ADMIN_EMAILS = ["jongminsin81@gmail.com", "lch200048@gmail.com"];
 
 export default function App() {
   const [activePage, setActivePage] = useState<ActivePage>("Home");
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const isAdmin = user && ADMIN_EMAILS.includes(user.email || "");
 
   // Firestore Sync States initialized with defaults
   const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
@@ -239,7 +239,7 @@ export default function App() {
           />
         );
       case "Notice":
-        return <NoticeView settings={settings} setActivePage={setActivePage} />;
+        return <NoticeView settings={settings} setActivePage={setActivePage} user={user} />;
       case "About":
         return <AboutView />;
       case "Login":

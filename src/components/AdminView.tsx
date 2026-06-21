@@ -22,7 +22,7 @@ import {
   Loader2,
   User,
 } from "lucide-react";
-import { Product, SiteSetting, Inquiry, MoodCard } from "../types";
+import { Product, SiteSetting, Inquiry, MoodCard, EventApplication } from "../types";
 import { collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { ref as sRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage, handleFirestoreError, OperationType } from "../firebase";
@@ -36,15 +36,15 @@ interface AdminViewProps {
   user: FirebaseUser | null;
 }
 
-type AdminTab = "settings" | "products" | "inquiries" | "moodCards";
+type AdminTab = "settings" | "products" | "inquiries" | "moodCards" | "applications";
 
-export const ADMIN_EMAIL = "jongminsin81@gmail.com";
+export const ADMIN_EMAILS = ["jongminsin81@gmail.com", "lch200048@gmail.com"];
 export const IMG_PLACEHOLDER = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&q=80";
 
 export default function AdminView({ products, settings, moodCards, user }: AdminViewProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>("products");
   
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const isAdmin = user && ADMIN_EMAILS.includes(user.email || "");
 
   if (!isAdmin) {
     return (
@@ -180,6 +180,10 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
   const [replyTextMap, setReplyTextMap] = useState<{ [inquiryId: string]: string }>({});
   const [replySubmitting, setReplySubmitting] = useState<{ [inquiryId: string]: boolean }>({});
 
+  // Event Applications collection states
+  const [allApplications, setAllApplications] = useState<EventApplication[]>([]);
+  const [loadingApps, setLoadingApps] = useState(true);
+
   const [formErr, setFormErr] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
   const [productSaving, setProductSaving] = useState(false);
@@ -225,6 +229,40 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
     );
     return () => unsubscribe();
   }, []);
+
+  // Fetch all event applications in system
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, "eventApplications"),
+      (snapshot) => {
+        const list: EventApplication[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            ...data,
+            createdAt: data.createdAt ? data.createdAt.toDate() : new Date(),
+          } as EventApplication);
+        });
+        list.sort((a, b) => new Date(b.createdAt as any).getTime() - new Date(a.createdAt as any).getTime());
+        setAllApplications(list);
+        setLoadingApps(false);
+      },
+      (error) => {
+        console.error("Admin loaded applications stream error:", error);
+        setLoadingApps(false);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  const handleDeleteApplication = async (appId: string) => {
+    try {
+      await deleteDoc(doc(db, "eventApplications", appId));
+    } catch (err: any) {
+      console.error("Failed to delete application:", err);
+    }
+  };
 
   // Update layout and set forms on editing
   const startEditProduct = (prod: Product) => {
@@ -778,6 +816,16 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
           }`}
         >
           Customer Inquiries ({allInquiries.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("applications")}
+          className={`pb-3 text-sm font-medium tracking-wide border-b-2 uppercase focus:outline-hidden ${
+            activeTab === "applications"
+              ? "border-[#8C624E] text-[#8C624E]"
+              : "border-transparent text-stone-500 hover:text-stone-800"
+          }`}
+        >
+          Event Slots ({allApplications.length})
         </button>
       </div>
 
@@ -1737,6 +1785,85 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* TAB 5: EVENT APPLICATIONS */}
+      {activeTab === "applications" && (
+        <div className="space-y-6 animate-fade-in text-left">
+          <div className="border-b border-stone-200 pb-3">
+            <h3 className="text-xl font-serif text-[#2C302E]">이벤트 슬롯 신청 내역 (Event Slot Applications)</h3>
+            <p className="text-xs text-stone-400 font-light mt-1">
+              고객들이 이벤트 슬롯을 통해 접수한 이름, 연락처, 사이즈 등의 참가지원 내역 리스트입니다.
+            </p>
+          </div>
+
+          {loadingApps ? (
+            <div className="text-center py-16">
+              <Loader2 className="w-8 h-8 text-[#8C624E] animate-spin mx-auto" />
+              <p className="text-xs text-stone-400 mt-2 font-mono">Loading slots dataset...</p>
+            </div>
+          ) : allApplications.length === 0 ? (
+            <div className="text-center py-24 bg-[#FAF7F0] border border-stone-200/50 rounded-xs space-y-4">
+              <FileText className="w-8 h-8 text-stone-300 mx-auto" />
+              <p className="text-xs text-stone-400 font-light">
+                접수된 이벤트 신청 내역이 없습니다.<br />이벤트가 활성화되고 나면 사용자들이 가입 후 Notice 영역에서 직접 신청할 수 있습니다.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white border border-stone-200/60 rounded-xs overflow-hidden shadow-2xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-[#FAF7F0] text-stone-600 font-mono text-[10px] uppercase tracking-wider border-b border-stone-200">
+                      <th className="py-3 px-4 font-semibold">이벤트명 / Event Title</th>
+                      <th className="py-3 px-4 font-semibold">신청자명 / Name</th>
+                      <th className="py-3 px-4 font-semibold">연락처 / Phone</th>
+                      <th className="py-3 px-4 font-semibold">희망 사이즈 / Size</th>
+                      <th className="py-3 px-4 font-semibold">회원 이메일 / Account</th>
+                      <th className="py-3 px-4 font-semibold">신청 일시 / Applied At</th>
+                      <th className="py-3 px-4 text-right font-semibold">관리 / Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {allApplications.map((app) => (
+                      <tr key={app.id} className="hover:bg-stone-50/50 transition-colors text-stone-700">
+                        <td className="py-3.5 px-4 font-serif text-[#2C302E] font-medium">
+                          {app.eventTitle}
+                        </td>
+                        <td className="py-3.5 px-4 font-semibold">
+                          {app.name}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono">
+                          {app.phone}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="inline-block bg-[#8C624E]/5 text-[#8C624E] border border-[#8C624E]/10 rounded-xs px-2 py-0.5 font-sans font-medium">
+                            {app.size}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-stone-500 font-light">
+                          {app.userEmail}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-stone-400">
+                          {app.createdAt ? new Date(app.createdAt.toDate ? app.createdAt.toDate() : app.createdAt).toLocaleString("ko-KR") : "-"}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <button
+                            onClick={() => app.id && handleDeleteApplication(app.id)}
+                            className="p-1.5 hover:bg-red-50 text-stone-400 hover:text-red-600 rounded-sm transition-colors cursor-pointer"
+                            title="Delete Application"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

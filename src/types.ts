@@ -82,3 +82,14 @@ export interface MoodCard {
   updatedAt: Timestamp | Date;
 }
 
+export interface EventApplication {
+  id?: string;
+  userId: string;
+  userEmail: string;
+  name: string;
+  phone: string;
+  size: string;
+  eventTitle: string;
+  createdAt: Timestamp | Date;
+}
+

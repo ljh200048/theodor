@@ -4,17 +4,78 @@
  */
 
 import React, { useState } from "react";
-import { AlertCircle, Calendar, ShieldCheck, HelpCircle, ChevronDown, ChevronUp, ArrowRight, Sparkles } from "lucide-react";
+import { AlertCircle, Calendar, ShieldCheck, HelpCircle, ChevronDown, ChevronUp, ArrowRight, Sparkles, Check, Send } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { SiteSetting } from "../types";
+import { db } from "../firebase";
+import { collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { User as FirebaseUser } from "firebase/auth";
 
 interface NoticeProps {
   settings: SiteSetting | null;
   setActivePage?: (page: string) => void;
+  user?: FirebaseUser | null;
 }
 
-export default function NoticeView({ settings, setActivePage }: NoticeProps) {
+export default function NoticeView({ settings, setActivePage, user }: NoticeProps) {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  // Application form state
+  const [showApplyForm, setShowApplyForm] = useState(false);
+  const [applicantName, setApplicantName] = useState("");
+  const [applicantPhone, setApplicantPhone] = useState("");
+  const [applicantSize, setApplicantSize] = useState("");
+  const [applyLoading, setApplyLoading] = useState(false);
+  const [applySuccess, setApplySuccess] = useState<string | null>(null);
+  const [applyError, setApplyError] = useState<string | null>(null);
+
+  const handleApplyEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      setApplyError("이벤트 신청은 회원 전용 서비스입니다. 로그인 후 신청해 주세요.");
+      return;
+    }
+    if (!applicantName.trim()) {
+      setApplyError("이름을 입력해 주세요.");
+      return;
+    }
+    if (!applicantPhone.trim()) {
+      setApplyError("전화번호를 입력해 주세요.");
+      return;
+    }
+    if (!applicantSize.trim()) {
+      setApplyError("사이즈를 입력해 주세요.");
+      return;
+    }
+
+    setApplyLoading(true);
+    setApplyError(null);
+    try {
+      const newAppRef = doc(collection(db, "eventApplications"));
+      await setDoc(newAppRef, {
+        userId: user.uid,
+        userEmail: user.email || "unknown",
+        name: applicantName.trim(),
+        phone: applicantPhone.trim(),
+        size: applicantSize.trim(),
+        eventTitle: settings?.eventTitle || "Special Archive Event",
+        createdAt: serverTimestamp(),
+      });
+      setApplySuccess("이벤트 신청이 안전하게 완료되었습니다! 확인 후 개별 안내해 드리겠습니다.");
+      setApplicantName("");
+      setApplicantPhone("");
+      setApplicantSize("");
+      setTimeout(() => {
+        setApplySuccess(null);
+        setShowApplyForm(false);
+      }, 4000);
+    } catch (err: any) {
+      console.error("Failed to submit event application:", err);
+      setApplyError("신청 데이터 전송에 실패했습니다. 다시 시도해 주세요.");
+    } finally {
+      setApplyLoading(false);
+    }
+  };
 
   const title = settings?.noticeTitle || "theodor_vintage 릴리즈 및 배송 안내";
   const text = settings?.noticeText || "모든 패브릭 빈티지 상품은 정밀 세탁 및 고온 스팀 살균 처리가 완료된 후 정성스레 배송됩니다. 수량이 오직 하나뿐인 빈티지 편집 특성상, 장바구니에 담아두시더라도 결제 완료 선착순으로 완판되오니 이 점 유의 부탁드립니다.";
@@ -95,28 +156,30 @@ export default function NoticeView({ settings, setActivePage }: NoticeProps) {
                 </p>
               )}
 
-              <div className="pt-2">
-                {settings.eventLink ? (
+              <div className="pt-2 flex flex-wrap gap-3">
+                {settings.eventLink && (
                   <a
                     href={settings.eventLink}
                     target={settings.eventLink.startsWith("http") ? "_blank" : "_self"}
                     rel="noopener noreferrer"
-                    className="inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-8 py-3.5 rounded-xs"
+                    className="inline-flex items-center space-x-2 bg-transparent hover:bg-[#FAF7F0]/10 text-white border border-[#FAF7F0]/25 transition-all text-xs font-semibold uppercase tracking-widest px-6 py-3 rounded-xs"
                   >
                     <span>View Event Details</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </a>
-                ) : (
-                  setActivePage && (
-                    <button
-                      onClick={() => setActivePage("Shop")}
-                      className="inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-8 py-3.5 rounded-xs cursor-pointer"
-                    >
-                      <span>Explore Collection</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  )
                 )}
+                <button
+                  type="button"
+                  onClick={() => setShowApplyForm(!showApplyForm)}
+                  className={`inline-flex items-center space-x-2 transition-all text-xs font-semibold uppercase tracking-widest px-8 py-3.5 rounded-xs cursor-pointer ${
+                    showApplyForm 
+                      ? "bg-[#8C624E] text-[#FAF7F0] shadow-sm" 
+                      : "bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white"
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{showApplyForm ? "Close Form (접기)" : "신청하기 (Apply)"}</span>
+                </button>
               </div>
             </div>
 
@@ -132,6 +195,112 @@ export default function NoticeView({ settings, setActivePage }: NoticeProps) {
               </div>
             )}
           </div>
+
+          <AnimatePresence>
+            {showApplyForm && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="mt-6 pt-6 border-t border-[#FAF7F0]/10 text-left w-full relative z-10 overflow-hidden"
+              >
+                <h4 className="text-sm font-serif text-[#FAF7F0]/90 mb-4 tracking-wide flex items-center">
+                  <Send className="w-4 h-4 mr-2 text-[#8C624E]" />
+                  <span>이벤트 참가 신청서 (Event Application)</span>
+                </h4>
+                
+                {!user ? (
+                  <div className="bg-stone-900/40 border border-[#FAF7F0]/10 p-5 rounded-xs text-xs text-[#FAF7F0]/85 space-y-4">
+                    <p className="font-light leading-relaxed">
+                      이벤트 슬롯 신청은 간편하고 정확한 안내를 위해 **회원 전용**으로 안전하게 운영됩니다.
+                      본 서비스 참여를 위해 먼저 로그인 단계를 거쳐 주시기 바랍니다.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setActivePage && setActivePage("Login")}
+                      className="bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white text-[10px] font-bold tracking-widest uppercase px-5 py-2.5 transition-all rounded-xs cursor-pointer"
+                    >
+                      로그인 / 회원가입 하러가기
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleApplyEvent} className="bg-stone-950/20 border border-[#FAF7F0]/10 p-5 rounded-xs space-y-4">
+                    {applySuccess && (
+                      <div className="p-3 bg-[#FAF7F0]/10 text-[#FAF7F0] text-xs font-mono border-l-2 border-[#8C624E] flex items-center">
+                        <Check className="w-4 h-4 mr-2 text-[#8C624E]" />
+                        <span>{applySuccess}</span>
+                      </div>
+                    )}
+                    
+                    {applyError && (
+                      <div className="p-3 bg-red-950/40 text-red-100 text-xs border-l-2 border-red-500">
+                        {applyError}
+                      </div>
+                    )}
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] uppercase tracking-wider text-[#FAF7F0]/60 font-mono block font-semibold">이름 (Name)</label>
+                        <input
+                          type="text"
+                          value={applicantName}
+                          onChange={(e) => setApplicantName(e.target.value)}
+                          disabled={applyLoading || !!applySuccess}
+                          placeholder="홍길동"
+                          className="bg-stone-900/40 border border-[#FAF7F0]/15 rounded-xs w-full text-xs text-[#FAF7F0] py-2 px-3 focus:outline-hidden focus:border-[#8C624E] font-sans"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] uppercase tracking-wider text-[#FAF7F0]/60 font-mono block font-semibold">연락처 (Phone Number)</label>
+                        <input
+                          type="tel"
+                          value={applicantPhone}
+                          onChange={(e) => setApplicantPhone(e.target.value)}
+                          disabled={applyLoading || !!applySuccess}
+                          placeholder="010-XXXX-XXXX"
+                          className="bg-stone-900/40 border border-[#FAF7F0]/15 rounded-xs w-full text-xs text-[#FAF7F0] py-2 px-3 focus:outline-hidden focus:border-[#8C624E] font-sans"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] uppercase tracking-wider text-[#FAF7F0]/60 font-mono block font-semibold">사이즈 / 희망 사양 (Size)</label>
+                        <input
+                          type="text"
+                          value={applicantSize}
+                          onChange={(e) => setApplicantSize(e.target.value)}
+                          disabled={applyLoading || !!applySuccess}
+                          placeholder="예: M (100) / 허리 31 등"
+                          className="bg-stone-900/40 border border-[#FAF7F0]/15 rounded-xs w-full text-xs text-[#FAF7F0] py-2 px-3 focus:outline-hidden focus:border-[#8C624E] font-sans"
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="submit"
+                        disabled={applyLoading || !!applySuccess}
+                        className="bg-[#8C624E] hover:bg-[#FAF7F0] text-[#FAF7F0] hover:text-[#2C302E] transition-all text-[11px] uppercase tracking-widest font-bold px-6 py-2.5 rounded-xs flex items-center space-x-2 disabled:opacity-50 cursor-pointer"
+                      >
+                        {applyLoading ? (
+                          <span>제출 중 (Submitting)...</span>
+                        ) : (
+                          <>
+                            <span>신청서 제출하기</span>
+                            <Send className="w-3.5 h-3.5" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )}
 
