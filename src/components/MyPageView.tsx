@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { User, Heart, MessageSquare, Sparkles, Clock, Trash2, ArrowRight, ShoppingBag } from "lucide-react";
+import { User, Heart, MessageSquare, Sparkles, Clock, Trash2, ArrowRight, ShoppingBag, X } from "lucide-react";
 import { Product, Favorite, Inquiry, Order } from "../types";
 import { User as FirebaseUser } from "firebase/auth";
 import { collection, query, where, onSnapshot, doc, deleteDoc, updateDoc, getDoc } from "firebase/firestore";
@@ -37,6 +37,18 @@ export default function MyPageView({
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const [cancellingError, setCancellingError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+
+  // Archive Removal States
+  const [orderToDeleteId, setOrderToDeleteId] = useState<string | null>(null);
+
+  const handleDeleteArchivedOrder = async (orderId: string) => {
+    try {
+      await deleteDoc(doc(db, "orders", orderId));
+      setOrderToDeleteId(null);
+    } catch (err: any) {
+      console.error("Error deleting order document:", err);
+    }
+  };
 
   const handleCancelOrder = async (order: Order) => {
     setIsCancelling(true);
@@ -352,7 +364,36 @@ export default function MyPageView({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {userOrders.map((ord) => (
-              <div key={ord.id} className="bg-white border border-[#8C624E]/10 rounded-sm hover:border-[#8C624E]/20 transition-all p-5 shadow-xs flex flex-col sm:flex-row gap-5">
+              <div key={ord.id} className="bg-white border border-[#8C624E]/10 rounded-sm hover:border-[#8C624E]/20 transition-all p-5 shadow-xs flex flex-col sm:flex-row gap-5 relative">
+                {ord.status === "cancelled" && (
+                  <div className="absolute top-2.5 right-2.5 flex items-center space-x-1 z-10">
+                    {orderToDeleteId === ord.id ? (
+                      <div className="bg-[#FDFBF7] border border-red-200 rounded-xs p-1 px-1.5 flex items-center space-x-1.5 text-[10px] shadow-sm animate-pulse">
+                        <span className="text-red-600 font-medium font-sans">삭제할까요?</span>
+                        <button
+                          onClick={() => handleDeleteArchivedOrder(ord.id)}
+                          className="bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded-xs cursor-pointer text-[9px] font-semibold transition-all"
+                        >
+                          삭제
+                        </button>
+                        <button
+                          onClick={() => setOrderToDeleteId(null)}
+                          className="bg-stone-100 hover:bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded-xs cursor-pointer text-[9px] transition-all"
+                        >
+                          취소
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setOrderToDeleteId(ord.id)}
+                        className="text-stone-300 hover:text-red-500 hover:bg-red-50/50 p-1 rounded-sm border border-transparent hover:border-red-100/50 transition-all cursor-pointer flex items-center"
+                        title="이 취소 내역을 목록에서 완전히 삭제"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                )}
                 <div 
                   onClick={() => ord.productId && viewProduct(ord.productId)}
                   className="w-24 h-32 bg-stone-50 shrink-0 border border-stone-100 overflow-hidden cursor-pointer h-fit"
@@ -378,7 +419,7 @@ export default function MyPageView({
                       ord.status === "completed" || ord.status === "delivered"
                         ? "bg-emerald-50 text-emerald-700 border-emerald-250/40"
                         : ord.status === "cancelled"
-                        ? "bg-red-50 text-red-600 border-red-250/40"
+                        ? `bg-red-50 text-red-600 border-red-250/40 ${orderToDeleteId === ord.id ? "mr-24" : "mr-6"}`
                         : ord.status === "shipped"
                         ? "bg-blue-50 text-blue-700 border-blue-250/30"
                         : ord.status === "confirmed"

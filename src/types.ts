@@ -70,7 +70,9 @@ export type ActivePage =
   | "Signup"
   | "MyPage"
   | "Admin"
-  | "Cart";
+  | "Cart"
+  | "Privacy"
+  | "Terms";
 
 export interface MoodCard {
   id: string;

@@ -28,6 +28,8 @@ import MyPageView from "./components/MyPageView";
 import AdminView from "./components/AdminView";
 import ConsentModal from "./components/ConsentModal";
 import CartView from "./components/CartView";
+import PrivacyView from "./components/PrivacyView";
+import TermsView from "./components/TermsView";
 import { DEFAULT_PRODUCTS, DEFAULT_SETTINGS, DEFAULT_MOOD_CARDS } from "./mockData";
 
 export const ADMIN_EMAILS = ["jongminsin81@gmail.com", "lch200048@gmail.com"];
@@ -54,6 +56,11 @@ export default function App() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [detailedProductId, setDetailedProductId] = useState<string | null>(null);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
+
+  // Scroll to extreme top when navigating or changing detailed product pages
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [activePage, detailedProductId]);
 
 
 
@@ -385,6 +392,10 @@ export default function App() {
             }}
           />
         );
+      case "Privacy":
+        return <PrivacyView />;
+      case "Terms":
+        return <TermsView />;
       default:
         return (
           <HomeView

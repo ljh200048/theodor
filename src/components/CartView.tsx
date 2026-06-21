@@ -105,6 +105,11 @@ export default function CartView({
     }
   }, [user]);
 
+  // Scroll to top when changing steps to prevent layout being caught/stuck at the bottom
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [step]);
+
   // Sync with localStorage
   const saveCartToStorage = (updatedCart: CartItem[]) => {
     setCartItems(updatedCart);
