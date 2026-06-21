@@ -28,6 +28,30 @@ export default function Header({
   setDetailedProductId,
 }: HeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+
+  React.useEffect(() => {
+    const updateCartCount = () => {
+      const stored = localStorage.getItem("theodor_cart");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const totalQty = parsed.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+          setCartCount(totalQty);
+        } catch (e) {
+          setCartCount(0);
+        }
+      } else {
+        setCartCount(0);
+      }
+    };
+
+    updateCartCount();
+    window.addEventListener("storage", updateCartCount);
+    return () => {
+      window.removeEventListener("storage", updateCartCount);
+    };
+  }, []);
 
   const navItems: { label: string; value: ActivePage }[] = [
     { label: "Home", value: "Home" },
@@ -80,6 +104,25 @@ export default function Header({
 
           {/* Utilities (Auth, MyPage, Admin) */}
           <div className="hidden md:flex flex-1 justify-end items-center space-x-6">
+            {/* Desktop Cart Link button */}
+            <button
+              onClick={() => handleNav("Cart")}
+              className={`relative flex items-center space-x-1.5 text-xs sm:text-sm tracking-widest uppercase text-[#2C302E]/80 hover:text-[#2C302E] transition-colors focus:outline-hidden cursor-pointer ${
+                activePage === "Cart" ? "text-[#8C624E] font-semibold" : ""
+              }`}
+              id="btn-nav-cart"
+            >
+              <div className="relative">
+                <ShoppingBag className="w-4 h-4 text-[#8C624E]" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-[#8C624E] text-[#FAF7F0] text-[8px] font-bold font-mono h-3.5 w-3.5 rounded-full flex items-center justify-center border border-[#FDFBF7]">
+                    {cartCount}
+                  </span>
+                )}
+              </div>
+              <span className="font-serif">장바구니</span>
+            </button>
+
             {isAdmin && (
               <button
                 onClick={() => handleNav("Admin")}
@@ -130,6 +173,22 @@ export default function Header({
 
           {/* Mobile Menu Trigger */}
           <div className="md:hidden flex items-center space-x-4">
+            {/* Mobile Cart Link Shortcut */}
+            <button
+              onClick={() => handleNav("Cart")}
+              className={`relative p-2 border border-stone-200 rounded-full text-[#8C624E] cursor-pointer transition-all ${
+                activePage === "Cart" ? "bg-stone-50 border-[#8C624E]" : ""
+              }`}
+              title="Cart Page"
+            >
+              <ShoppingBag className="w-4 h-4" />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1.5 bg-[#8C624E] text-[#FAF7F0] text-[8px] font-bold font-mono h-3.5 w-3.5 rounded-full flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+
             {isAdmin && (
               <button
                 onClick={() => handleNav("Admin")}
@@ -178,6 +237,17 @@ export default function Header({
               ))}
 
               <div className="border-t border-[#FAF7F0] my-3 pt-3">
+                <button
+                  onClick={() => handleNav("Cart")}
+                  className={`flex items-center w-full text-left py-2.5 px-3 text-sm tracking-widest rounded-sm ${
+                    activePage === "Cart"
+                      ? "bg-[#FAF7F0] text-[#8C624E] font-medium"
+                      : "text-[#2C302E]/80"
+                  }`}
+                >
+                  <ShoppingBag className="w-4 h-4 mr-2 text-[#8C624E]" />
+                  장바구니 (My Cart)
+                </button>
                 {user ? (
                   <div className="space-y-2">
                     <button

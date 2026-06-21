@@ -27,6 +27,7 @@ import SignupView from "./components/SignupView";
 import MyPageView from "./components/MyPageView";
 import AdminView from "./components/AdminView";
 import ConsentModal from "./components/ConsentModal";
+import CartView from "./components/CartView";
 import { DEFAULT_PRODUCTS, DEFAULT_SETTINGS, DEFAULT_MOOD_CARDS } from "./mockData";
 
 export const ADMIN_EMAILS = ["jongminsin81@gmail.com", "lch200048@gmail.com"];
@@ -367,6 +368,21 @@ export default function App() {
             settings={settings}
             moodCards={moodCards}
             user={user}
+          />
+        );
+      case "Cart":
+        return (
+          <CartView
+            products={products}
+            user={user}
+            setActivePage={setActivePage}
+            setDetailedProductId={setDetailedProductId}
+            triggerLoginRedirect={(page, prodId, notice) => {
+              setRedirectPage(page);
+              if (prodId) setRedirectProductId(prodId);
+              if (notice) setAuthNotice(notice);
+              setActivePage("Login");
+            }}
           />
         );
       default:

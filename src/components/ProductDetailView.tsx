@@ -76,6 +76,93 @@ export default function ProductDetailView({
   // Sizing choice states
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [sizeError, setSizeError] = useState("");
+  const [showCartSuccess, setShowCartSuccess] = useState(false);
+
+  const handleAddToCart = () => {
+    setSizeError("");
+    const isSizeSelectionCategory = ["tops", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
+    const isShoesCategory = liveProduct.category.toLowerCase() === "shoes";
+
+    if (isSizeSelectionCategory && !selectedSize) {
+      setSizeError("장바구니 추가를 위해 S / M / L 중 원하시는 옷의 사이즈를 선택해 주세요.");
+      return;
+    }
+    if (isShoesCategory && (!selectedSize || !selectedSize.trim())) {
+      setSizeError("장바구니 추가를 위해 원하시는 신발 사이즈(예: 240, 270 등)를 입력해 주세요.");
+      return;
+    }
+
+    const chosenSize = ((isSizeSelectionCategory || isShoesCategory) && selectedSize) ? selectedSize : liveProduct.size;
+    const cartId = `${liveProduct.id}_${chosenSize}`;
+
+    let existingCart: any[] = [];
+    const storedCart = localStorage.getItem("theodor_cart");
+    if (storedCart) {
+      try {
+        existingCart = JSON.parse(storedCart);
+      } catch (err) {
+        console.error("Cart retrieval error:", err);
+      }
+    }
+
+    const existingIndex = existingCart.findIndex(item => item.id === cartId);
+    if (existingIndex > -1) {
+      existingCart[existingIndex].quantity += 1;
+    } else {
+      existingCart.push({
+        id: cartId,
+        product: liveProduct,
+        selectedSize: chosenSize,
+        quantity: 1
+      });
+    }
+
+    localStorage.setItem("theodor_cart", JSON.stringify(existingCart));
+    window.dispatchEvent(new Event("storage"));
+    setShowCartSuccess(true);
+  };
+
+  const handleBuyNow = () => {
+    setSizeError("");
+    const isSizeSelectionCategory = ["tops", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
+    const isShoesCategory = liveProduct.category.toLowerCase() === "shoes";
+
+    if (isSizeSelectionCategory && !selectedSize) {
+      setSizeError("구매 진행을 위해 S / M / L 중 원하시는 옷의 사이즈를 선택해 주세요.");
+      return;
+    }
+    if (isShoesCategory && (!selectedSize || !selectedSize.trim())) {
+      setSizeError("구매 진행을 위해 원하시는 신발 사이즈(예: 240, 270 등)를 입력해 주세요.");
+      return;
+    }
+
+    const chosenSize = ((isSizeSelectionCategory || isShoesCategory) && selectedSize) ? selectedSize : liveProduct.size;
+    const cartId = `${liveProduct.id}_${chosenSize}`;
+
+    let existingCart: any[] = [];
+    const storedCart = localStorage.getItem("theodor_cart");
+    if (storedCart) {
+      try {
+        existingCart = JSON.parse(storedCart);
+      } catch (err) {
+        console.error("Cart retrieval error:", err);
+      }
+    }
+
+    const existingIndex = existingCart.findIndex(item => item.id === cartId);
+    if (existingIndex === -1) {
+      existingCart.push({
+        id: cartId,
+        product: liveProduct,
+        selectedSize: chosenSize,
+        quantity: 1
+      });
+    }
+
+    localStorage.setItem("theodor_cart", JSON.stringify(existingCart));
+    window.dispatchEvent(new Event("storage"));
+    setActivePage("Cart");
+  };
 
   // Keep liveProduct updated with the live Firestore document
   useEffect(() => {
@@ -531,37 +618,101 @@ export default function ProductDetailView({
           {/* Interactive Actions Panel */}
           <div className="flex flex-col gap-4 pt-4 border-t border-stone-200">
             
-            <div className="flex items-stretch gap-4">
-              {/* Wishlist toggle */}
-              <button
-                onClick={() => toggleFavorite(liveProduct.id)}
-                className={`flex items-center justify-center p-4.5 border rounded-xs transition-colors shrink-0 focus:outline-hidden ${
-                  isFavorited
-                    ? "bg-red-50 border-red-200 text-red-500"
-                    : "border-stone-300 text-stone-400 hover:text-red-500 hover:border-red-200"
-                }`}
-                id="like-button"
-              >
-                <Heart className="w-5.5 h-5.5" fill={isFavorited ? "currentColor" : "none"} />
-              </button>
-
-              {/* Purchase Trigger Button */}
-              {liveProduct.isSoldOut ? (
-                <button
-                  disabled
-                  className="flex-1 text-center bg-stone-100 text-stone-400 border border-stone-200 py-4.5 text-xs font-semibold uppercase tracking-widest rounded-xs cursor-not-allowed"
-                >
-                  품절된 상품 (SOLD OUT)
-                </button>
-              ) : (
-                <button
-                  onClick={handleOrderClick}
-                  className="flex-1 text-center bg-[#8C624E] hover:bg-[#754f3d] text-white py-4.5 px-6 text-xs sm:text-sm font-bold uppercase tracking-widest transition-all duration-200 block rounded-xs shadow-md hover:shadow-lg hover:brightness-105 active:scale-98 cursor-pointer font-serif"
-                >
-                  구매하기 (Order Now)
-                </button>
+            <div className="flex flex-col gap-3">
+              {/* Size Selection Error indicator */}
+              {sizeError && (
+                <div className="text-[11px] text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-xs flex items-center space-x-1.5 animate-pulse font-mono">
+                  <span className="font-bold">[!]:</span>
+                  <span>{sizeError}</span>
+                </div>
               )}
+
+              <div className="flex flex-col sm:flex-row items-stretch gap-3">
+                {/* Wishlist toggle */}
+                <button
+                  onClick={() => toggleFavorite(liveProduct.id)}
+                  className={`flex items-center justify-center p-4 border rounded-xs transition-colors shrink-0 focus:outline-hidden cursor-pointer ${
+                    isFavorited
+                      ? "bg-red-50 border-red-200 text-red-500"
+                      : "border-stone-300 text-stone-400 hover:text-red-500 hover:border-red-200"
+                  }`}
+                  id="like-button"
+                  title="찜하기"
+                >
+                  <Heart className="w-5 h-5" fill={isFavorited ? "currentColor" : "none"} />
+                </button>
+
+                {liveProduct.isSoldOut ? (
+                  <button
+                    disabled
+                    className="flex-1 text-center bg-stone-100 text-stone-400 border border-stone-200 py-4 text-xs font-semibold uppercase tracking-widest rounded-xs cursor-not-allowed font-serif"
+                  >
+                    품절된 상품 (SOLD OUT)
+                  </button>
+                ) : (
+                  <>
+                    {/* Add to Cart Button */}
+                    <button
+                      onClick={handleAddToCart}
+                      className="flex-1 text-center bg-transparent hover:bg-stone-50 text-[#8C624E] border border-[#8C624E]/45 py-4 px-4 text-xs font-bold uppercase tracking-widest transition-all duration-200 rounded-xs active:scale-98 cursor-pointer font-serif flex items-center justify-center space-x-1.5"
+                    >
+                      <span>장바구니 담기</span>
+                    </button>
+
+                    {/* Buy Now Button */}
+                    <button
+                      onClick={handleBuyNow}
+                      className="flex-1 text-center bg-[#8C624E] hover:bg-[#754f3d] text-white py-4 px-4 text-xs font-bold uppercase tracking-widest transition-all duration-200 rounded-xs shadow-md hover:brightness-105 active:scale-98 cursor-pointer font-serif flex items-center justify-center space-x-1.5"
+                    >
+                      <span>바로 구매하기 (Buy Now)</span>
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
+
+            {/* Cart Success Dialog Overlay */}
+            <AnimatePresence>
+              {showCartSuccess && (
+                <div className="fixed inset-0 bg-[#2C302E]/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="bg-[#FDFBF7] border border-[#8C624E]/20 p-6 max-w-sm w-full rounded-sm text-center space-y-5 shadow-xl"
+                  >
+                    <div className="w-12 h-12 bg-[#8C624E]/10 text-[#8C624E] rounded-full flex items-center justify-center mx-auto">
+                      <span className="font-serif font-bold text-lg">T</span>
+                    </div>
+                    
+                    <div className="space-y-1.5">
+                      <h4 className="text-sm font-serif font-bold text-[#2C302E] uppercase tracking-wider">장바구니에 소장되었습니다</h4>
+                      <p className="text-xs text-stone-500 font-sans leading-relaxed">
+                        선택하신 고귀한 아카이브 의류가 장바구니에 성공적으로 적립되었습니다. 결제 단계로 진행하시겠습니까?
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <button
+                        onClick={() => setShowCartSuccess(false)}
+                        className="border border-stone-300 hover:bg-stone-50 text-stone-600 font-semibold font-sans text-xs py-2.5 rounded-xs cursor-pointer transition-colors"
+                      >
+                        쇼핑 계속하기
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowCartSuccess(false);
+                          setActivePage("Cart");
+                        }}
+                        className="bg-[#2C302E] hover:bg-[#8C624E] text-[#FAF7F0] font-semibold font-sans text-xs py-2.5 rounded-xs cursor-pointer transition-colors shadow-xs"
+                      >
+                        장바구니 가기
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
 
           </div>
 
