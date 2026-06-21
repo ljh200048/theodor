@@ -963,17 +963,20 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
                 </div>
 
                 {/* Event Link */}
-                <div className="space-y-1">
+                <div className="space-y-1 sm:col-span-2">
                   <label className="text-[10px] uppercase tracking-widest text-[#2C302E]/60 font-semibold font-mono block">
-                    Event Target Link URL (이벤트 클릭 시 연결 링크)
+                    Event Link or Google Form Embed (이벤트 클릭 링크 또는 구글 폼 임베드)
                   </label>
                   <input
                     type="text"
                     value={eventLink}
                     onChange={(e) => setEventLink(e.target.value)}
                     className="w-full bg-white border border-[#8C624E]/10 rounded-xs py-2.5 px-4 text-sm focus:outline-hidden focus:border-[#8C624E] font-mono text-xs"
-                    placeholder="이벤트 클릭 시 연결될 URL (Optional)"
+                    placeholder="이벤트 외부 링크 URL 또는 Google Form 링크 / <iframe...> 임베드 코드를 입력하세요."
                   />
+                  <p className="text-[10px] text-stone-400 font-light leading-normal">
+                    Google Form URL(또는 iframe 코드) 입력 시 Notice 페이지 신청 화면에 구글 설문지가 직접 임베딩으로 노출되어, 사용자가 데이터를 즉시 작성하여 제출할 수 있게 자동 활성화됩니다.
+                  </p>
                 </div>
               </div>
 

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { AlertCircle, Calendar, ShieldCheck, HelpCircle, ChevronDown, ChevronUp, ArrowRight, Sparkles, Check, Send } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { SiteSetting } from "../types";
@@ -28,6 +28,29 @@ export default function NoticeView({ settings, setActivePage, user }: NoticeProp
   const [applyLoading, setApplyLoading] = useState(false);
   const [applySuccess, setApplySuccess] = useState<string | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
+
+  const formRef = useRef<HTMLDivElement>(null);
+
+  const eventLinkRaw = settings?.eventLink || "";
+  const isGoogleForm = eventLinkRaw.includes("<iframe") || eventLinkRaw.includes("docs.google.com/forms") || eventLinkRaw.includes("google.com/forms");
+
+  const getGoogleFormIframeSrc = (input: string) => {
+    if (input.includes("<iframe") && input.includes("src=")) {
+      const match = input.match(/src="([^"]+)"/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+    let url = input.trim();
+    if (url.includes("docs.google.com/forms") && !url.includes("embedded=true")) {
+      if (url.includes("?")) {
+        url += "&embedded=true";
+      } else {
+        url += "?embedded=true";
+      }
+    }
+    return url;
+  };
 
   const handleApplyEvent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,8 +182,8 @@ export default function NoticeView({ settings, setActivePage, user }: NoticeProp
               <div className="pt-2 flex flex-wrap gap-3">
                 {settings.eventLink && (
                   <a
-                    href={settings.eventLink}
-                    target={settings.eventLink.startsWith("http") ? "_blank" : "_self"}
+                    href={isGoogleForm ? getGoogleFormIframeSrc(settings.eventLink) : settings.eventLink}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center space-x-2 bg-transparent hover:bg-[#FAF7F0]/10 text-white border border-[#FAF7F0]/25 transition-all text-xs font-semibold uppercase tracking-widest px-6 py-3 rounded-xs"
                   >
@@ -170,7 +193,15 @@ export default function NoticeView({ settings, setActivePage, user }: NoticeProp
                 )}
                 <button
                   type="button"
-                  onClick={() => setShowApplyForm(!showApplyForm)}
+                  onClick={() => {
+                    const nextVal = !showApplyForm;
+                    setShowApplyForm(nextVal);
+                    if (nextVal) {
+                      setTimeout(() => {
+                        formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }, 150);
+                    }
+                  }}
                   className={`inline-flex items-center space-x-2 transition-all text-xs font-semibold uppercase tracking-widest px-8 py-3.5 rounded-xs cursor-pointer ${
                     showApplyForm 
                       ? "bg-[#8C624E] text-[#FAF7F0] shadow-sm" 
@@ -199,6 +230,7 @@ export default function NoticeView({ settings, setActivePage, user }: NoticeProp
           <AnimatePresence>
             {showApplyForm && (
               <motion.div
+                ref={formRef}
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
@@ -210,7 +242,18 @@ export default function NoticeView({ settings, setActivePage, user }: NoticeProp
                   <span>이벤트 참가 신청서 (Event Application)</span>
                 </h4>
                 
-                {!user ? (
+                {isGoogleForm ? (
+                  <div className="w-full overflow-hidden bg-white rounded-xs border border-[#FAF7F0]/15 p-1 shadow-inner">
+                    <iframe
+                      src={getGoogleFormIframeSrc(eventLinkRaw)}
+                      className="w-full min-h-[550px] border-0 rounded-xs bg-white"
+                      title="Google Form Interface"
+                      referrerPolicy="no-referrer"
+                    >
+                      Loading...
+                    </iframe>
+                  </div>
+                ) : !user ? (
                   <div className="bg-stone-900/40 border border-[#FAF7F0]/10 p-5 rounded-xs text-xs text-[#FAF7F0]/85 space-y-4">
                     <p className="font-light leading-relaxed">
                       이벤트 슬롯 신청은 간편하고 정확한 안내를 위해 **회원 전용**으로 안전하게 운영됩니다.
