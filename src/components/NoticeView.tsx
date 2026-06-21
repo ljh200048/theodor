@@ -54,10 +54,6 @@ export default function NoticeView({ settings, setActivePage, user }: NoticeProp
 
   const handleApplyEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      setApplyError("이벤트 신청은 회원 전용 서비스입니다. 로그인 후 신청해 주세요.");
-      return;
-    }
     if (!applicantName.trim()) {
       setApplyError("이름을 입력해 주세요.");
       return;
@@ -74,10 +70,10 @@ export default function NoticeView({ settings, setActivePage, user }: NoticeProp
     setApplyLoading(true);
     setApplyError(null);
     try {
-      const newAppRef = doc(collection(db, "eventApplications"));
+      const newAppRef = doc(collection(db, "event_applications"));
       await setDoc(newAppRef, {
-        userId: user.uid,
-        userEmail: user.email || "unknown",
+        userId: user ? user.uid : "guest",
+        userEmail: user ? (user.email || "unknown") : "guest",
         name: applicantName.trim(),
         phone: applicantPhone.trim(),
         size: applicantSize.trim(),
@@ -253,22 +249,14 @@ export default function NoticeView({ settings, setActivePage, user }: NoticeProp
                       Loading...
                     </iframe>
                   </div>
-                ) : !user ? (
-                  <div className="bg-stone-900/40 border border-[#FAF7F0]/10 p-5 rounded-xs text-xs text-[#FAF7F0]/85 space-y-4">
-                    <p className="font-light leading-relaxed">
-                      이벤트 슬롯 신청은 간편하고 정확한 안내를 위해 **회원 전용**으로 안전하게 운영됩니다.
-                      본 서비스 참여를 위해 먼저 로그인 단계를 거쳐 주시기 바랍니다.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setActivePage && setActivePage("Login")}
-                      className="bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white text-[10px] font-bold tracking-widest uppercase px-5 py-2.5 transition-all rounded-xs cursor-pointer"
-                    >
-                      로그인 / 회원가입 하러가기
-                    </button>
-                  </div>
                 ) : (
                   <form onSubmit={handleApplyEvent} className="bg-stone-950/20 border border-[#FAF7F0]/10 p-5 rounded-xs space-y-4">
+                    {!user && (
+                      <div className="px-3 py-2 bg-[#8C624E]/10 border-l border-[#8C624E] text-[10px] text-[#FAF7F0]/85 font-light">
+                        💡 비회원 신청 상태입니다. 입력하신 연락처로 개별 안내를 드리게 되므로 정확한 작성 여부를 다시 한번 점검해 주십시오.
+                      </div>
+                    )}
+
                     {applySuccess && (
                       <div className="p-3 bg-[#FAF7F0]/10 text-[#FAF7F0] text-xs font-mono border-l-2 border-[#8C624E] flex items-center">
                         <Check className="w-4 h-4 mr-2 text-[#8C624E]" />
@@ -333,8 +321,8 @@ export default function NoticeView({ settings, setActivePage, user }: NoticeProp
                           <span>제출 중 (Submitting)...</span>
                         ) : (
                           <>
-                            <span>신청서 제출하기</span>
-                            <Send className="w-3.5 h-3.5" />
+                             <span>신청서 제출하기</span>
+                             <Send className="w-3.5 h-3.5" />
                           </>
                         )}
                       </button>

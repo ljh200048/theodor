@@ -93,3 +93,19 @@ export interface EventApplication {
   createdAt: Timestamp | Date;
 }
 
+export interface Order {
+  id: string;
+  userId: string;
+  userEmail: string;
+  productId: string;
+  productName: string;
+  productPrice: number;
+  productImageUrl: string;
+  recipientName: string;
+  recipientPhone: string;
+  shippingAddress: string;
+  size: string;
+  status: "pending" | "completed" | "cancelled";
+  createdAt: Timestamp | Date;
+}
+

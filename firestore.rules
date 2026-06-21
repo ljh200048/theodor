@@ -121,6 +121,47 @@ service cloud.firestore {
         && data.createdAt is timestamp;
     }
 
+    // Entity validator: User
+    function isValidUser(data) {
+      return data.userId is string
+        && data.userId.size() <= 128
+        && data.email is string
+        && data.email.size() <= 320
+        && data.name is string
+        && data.name.size() <= 200
+        && data.agreedTerms is bool
+        && data.agreedPrivacy is bool
+        && data.agreedMarketing is bool
+        && data.consentedAt is timestamp;
+    }
+
+    // Entity validator: Order
+    function isValidOrder(data) {
+      return data.userId is string
+        && data.userId.size() <= 128
+        && data.userEmail is string
+        && data.userEmail.size() <= 320
+        && data.productId is string
+        && data.productId.size() <= 128
+        && data.productName is string
+        && data.productName.size() <= 200
+        && data.productPrice is number
+        && data.productPrice >= 0
+        && data.productImageUrl is string
+        && data.productImageUrl.size() <= 2000
+        && data.recipientName is string
+        && data.recipientName.size() <= 100
+        && data.recipientPhone is string
+        && data.recipientPhone.size() <= 50
+        && data.shippingAddress is string
+        && data.shippingAddress.size() <= 1000
+        && data.size is string
+        && data.size.size() <= 50
+        && data.status is string
+        && (data.status == "pending" || data.status == "completed" || data.status == "cancelled")
+        && data.createdAt is timestamp;
+    }
+
     // ----------------- Collections -----------------
 
     // Products
@@ -130,9 +171,26 @@ service cloud.firestore {
         && isValidId(productId) 
         && isValidProduct(incoming()) 
         && incoming().createdAt == request.time;
-      allow update: if isAdmin() 
+      allow update: if (isAdmin() 
         && isValidProduct(incoming()) 
-        && incoming().createdAt == existing().createdAt;
+        && incoming().createdAt == existing().createdAt)
+        || (isSignedIn() 
+            && isValidProduct(incoming()) 
+            && incoming().isSoldOut == true 
+            && existing().isSoldOut == false
+            && incoming().createdAt == existing().createdAt);
+      allow delete: if isAdmin();
+    }
+
+    // Orders
+    match /orders/{orderId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() 
+        && isValidId(orderId) 
+        && isValidOrder(incoming()) 
+        && incoming().userId == request.auth.uid 
+        && incoming().createdAt == request.time;
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -186,12 +244,37 @@ service cloud.firestore {
     // Event Applications
     match /eventApplications/{applicationId} {
       allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isSignedIn() 
-        && isValidId(applicationId) 
+      allow create: if isValidId(applicationId) 
         && isValidEventApplication(incoming()) 
-        && incoming().userId == request.auth.uid 
-        && incoming().createdAt == request.time;
+        && incoming().createdAt == request.time
+        && (isSignedIn() ? incoming().userId == request.auth.uid : (incoming().userId == "guest" && incoming().userEmail == "guest"));
       allow delete: if isAdmin();
+    }
+
+    match /event_applications/{applicationId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isValidId(applicationId) 
+        && isValidEventApplication(incoming()) 
+        && incoming().createdAt == request.time
+        && (isSignedIn() ? incoming().userId == request.auth.uid : (incoming().userId == "guest" && incoming().userEmail == "guest"));
+      allow delete: if isAdmin();
+    }
+
+    // Users (Basic Information Collection Consent)
+    match /users/{userId} {
+      allow read: if isSignedIn() && (userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn()
+        && userId == request.auth.uid
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().consentedAt == request.time;
+      allow update: if isSignedIn()
+        && userId == request.auth.uid
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().consentedAt == existing().consentedAt;
     }
   }
 }

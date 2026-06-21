@@ -10,7 +10,7 @@
 
 import React, { useState, useEffect } from "react";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { collection, onSnapshot, query, where, doc, deleteDoc, setDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, where, doc, deleteDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { ActivePage, Product, SiteSetting, Favorite, MoodCard } from "./types";
 
@@ -26,6 +26,7 @@ import LoginView from "./components/LoginView";
 import SignupView from "./components/SignupView";
 import MyPageView from "./components/MyPageView";
 import AdminView from "./components/AdminView";
+import ConsentModal from "./components/ConsentModal";
 import { DEFAULT_PRODUCTS, DEFAULT_SETTINGS, DEFAULT_MOOD_CARDS } from "./mockData";
 
 export const ADMIN_EMAILS = ["jongminsin81@gmail.com", "lch200048@gmail.com"];
@@ -34,6 +35,14 @@ export default function App() {
   const [activePage, setActivePage] = useState<ActivePage>("Home");
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+
+  // Consent check states
+  const [consentProfile, setConsentProfile] = useState<any | null>(null);
+  const [loadingConsent, setLoadingConsent] = useState(false);
+
+  // Redirect back after login states
+  const [redirectPage, setRedirectPage] = useState<ActivePage | null>(null);
+  const [redirectProductId, setRedirectProductId] = useState<string | null>(null);
 
   const isAdmin = user && ADMIN_EMAILS.includes(user.email || "");
 
@@ -154,6 +163,59 @@ export default function App() {
     return () => unsubscribeFavs();
   }, [user]);
 
+  // 4. User Consent Real-time Sync
+  useEffect(() => {
+    if (!user) {
+      setConsentProfile(null);
+      setLoadingConsent(false);
+      return;
+    }
+
+    setLoadingConsent(true);
+    const unsubscribeConsent = onSnapshot(
+      doc(db, "users", user.uid),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setConsentProfile(docSnap.data());
+        } else {
+          setConsentProfile(null);
+        }
+        setLoadingConsent(false);
+      },
+      (error) => {
+        console.error("Firestore loading user consent stream error:", error);
+        setConsentProfile(null);
+        setLoadingConsent(false);
+      }
+    );
+
+    return () => unsubscribeConsent();
+  }, [user]);
+
+  // Handle User Consent Submission
+  const handleConsentComplete = async (consents: {
+    agreedTerms: boolean;
+    agreedPrivacy: boolean;
+    agreedMarketing: boolean;
+  }) => {
+    if (!user) return;
+    try {
+      const userRef = doc(db, "users", user.uid);
+      await setDoc(userRef, {
+        userId: user.uid,
+        email: user.email || "unknown",
+        name: user.displayName || user.email?.split("@")[0] || "Guest User",
+        agreedTerms: consents.agreedTerms,
+        agreedPrivacy: consents.agreedPrivacy,
+        agreedMarketing: consents.agreedMarketing,
+        consentedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("User consent creation failed:", err);
+      throw err;
+    }
+  };
+
   // Handle Logout
   const handleSignOut = async () => {
     try {
@@ -236,6 +298,12 @@ export default function App() {
             }}
             settings={settings}
             setActivePage={setActivePage}
+            triggerLoginRedirect={(page, prodId, notice) => {
+              setRedirectPage(page);
+              if (prodId) setRedirectProductId(prodId);
+              if (notice) setAuthNotice(notice);
+              setActivePage("Login");
+            }}
           />
         );
       case "Notice":
@@ -246,7 +314,20 @@ export default function App() {
         return (
           <LoginView
             setActivePage={setActivePage}
-            onLoginSuccess={() => setActivePage("Home")}
+            onLoginSuccess={() => {
+              if (redirectPage) {
+                const targetPage = redirectPage;
+                const targetProdId = redirectProductId;
+                setRedirectPage(null);
+                setRedirectProductId(null);
+                setActivePage(targetPage);
+                if (targetProdId) {
+                  setDetailedProductId(targetProdId);
+                }
+              } else {
+                setActivePage("Home");
+              }
+            }}
             initialNotice={authNotice}
             onClearNotice={() => setAuthNotice(null)}
           />
@@ -308,6 +389,8 @@ export default function App() {
     );
   }
 
+  const needsConsent = user && !loadingConsent && (consentProfile === null || (consentProfile && (!consentProfile.agreedTerms || !consentProfile.agreedPrivacy)));
+
   return (
     <div className="min-h-screen flex flex-col bg-[#FDFBF7] text-[#2C302E]">
       <Header
@@ -324,6 +407,15 @@ export default function App() {
       </main>
 
       <Footer settings={settings} setActivePage={setActivePage} />
+
+      {/* Consent Modal Overlay */}
+      {needsConsent && (
+        <ConsentModal
+          user={user}
+          onConsentComplete={handleConsentComplete}
+          onSignOut={handleSignOut}
+        />
+      )}
     </div>
   );
 }

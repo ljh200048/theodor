@@ -142,6 +142,100 @@
         }
       },
       "required": ["userId", "userEmail", "userName", "title", "message", "createdAt"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile with consent records",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "User UID"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email"
+        },
+        "name": {
+          "type": "string",
+          "description": "User display name"
+        },
+        "agreedTerms": {
+          "type": "boolean",
+          "description": "Whether agreed to Service Terms (Required)"
+        },
+        "agreedPrivacy": {
+          "type": "boolean",
+          "description": "Whether agreed to Privacy Policy (Required)"
+        },
+        "agreedMarketing": {
+          "type": "boolean",
+          "description": "Whether agreed to Marketing info (Optional)"
+        },
+        "consentedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of consensus"
+        }
+      },
+      "required": ["userId", "email", "name", "agreedTerms", "agreedPrivacy", "agreedMarketing", "consentedAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Product purchase order billing & shipping info",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "User UID who made the purchase"
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Purchased product ID"
+        },
+        "productName": {
+          "type": "string",
+          "description": "Name of the vintage piece"
+        },
+        "productPrice": {
+          "type": "number",
+          "description": "Price of the product"
+        },
+        "productImageUrl": {
+          "type": "string",
+          "description": "Primary visual image of the piece"
+        },
+        "recipientName": {
+          "type": "string",
+          "description": "Delivering recipient buyer name"
+        },
+        "recipientPhone": {
+          "type": "string",
+          "description": "Phone number for courier updates"
+        },
+        "shippingAddress": {
+          "type": "string",
+          "description": "Physical shipping delivery address"
+        },
+        "size": {
+          "type": "string",
+          "description": "Ordered garment/accessory tag size"
+        },
+        "status": {
+          "type": "string",
+          "description": "Order fulfill status: pending | completed | cancelled"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when transaction ordered"
+        }
+      },
+      "required": ["userId", "userEmail", "productId", "productName", "productPrice", "productImageUrl", "recipientName", "recipientPhone", "shippingAddress", "size", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -160,6 +254,14 @@
     "/inquiries/{inquiryId}": {
       "schema": "Inquiry",
       "description": "General customer product double checks and messaging inquiries"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Stored member basic info consent profiles"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Completed purchase transactions of boutique garments"
     }
   }
 }

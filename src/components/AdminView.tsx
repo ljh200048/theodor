@@ -233,7 +233,7 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
   // Fetch all event applications in system
   useEffect(() => {
     const unsubscribe = onSnapshot(
-      collection(db, "eventApplications"),
+      collection(db, "event_applications"),
       (snapshot) => {
         const list: EventApplication[] = [];
         snapshot.forEach((docSnap) => {
@@ -258,7 +258,7 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
 
   const handleDeleteApplication = async (appId: string) => {
     try {
-      await deleteDoc(doc(db, "eventApplications", appId));
+      await deleteDoc(doc(db, "event_applications", appId));
     } catch (err: any) {
       console.error("Failed to delete application:", err);
     }

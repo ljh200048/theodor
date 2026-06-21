@@ -31,6 +31,7 @@ interface ProductDetailProps {
   onBack: () => void;
   settings: SiteSetting | null;
   setActivePage: (p: ActivePage) => void;
+  triggerLoginRedirect?: (page: ActivePage, prodId?: string | null, notice?: string) => void;
 }
 
 export default function ProductDetailView({
@@ -41,6 +42,7 @@ export default function ProductDetailView({
   onBack,
   settings,
   setActivePage,
+  triggerLoginRedirect,
 }: ProductDetailProps) {
   const [liveProduct, setLiveProduct] = useState<Product>(product);
   const [activeImage, setActiveImage] = useState(product.imageUrl);
@@ -51,10 +53,33 @@ export default function ProductDetailView({
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState("");
 
+  // Order & Purchase Modal States
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [recipientName, setRecipientName] = useState(user?.displayName || "");
+  const [recipientPhone, setRecipientPhone] = useState("");
+  const [shippingAddress, setShippingAddress] = useState("");
+  const [ordering, setOrdering] = useState(false);
+  const [orderErr, setOrderErr] = useState("");
+  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [lastOrderId, setLastOrderId] = useState("");
+
+  // Sync recipient name if user logins in later
+  useEffect(() => {
+    if (user && !recipientName) {
+      setRecipientName(user.displayName || "");
+    }
+  }, [user]);
+
+  // Sizing choice states
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [sizeError, setSizeError] = useState("");
+
   // Keep liveProduct updated with the live Firestore document
   useEffect(() => {
     setLiveProduct(product);
     setActiveImage(product.imageUrl);
+    setSelectedSize(null);
+    setSizeError("");
   }, [product]);
 
   useEffect(() => {
@@ -129,8 +154,97 @@ export default function ProductDetailView({
     }
   };
 
+  const handleOrderClick = () => {
+    const isSizeSelectionCategory = ["tops", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
+    if (isSizeSelectionCategory && !selectedSize) {
+      setSizeError("구매 진행을 위해 S / M / L 중 원하시는 옷의 사이즈를 선택해 주세요.");
+      return;
+    }
+
+    if (!user) {
+      if (triggerLoginRedirect) {
+        triggerLoginRedirect(
+          "ProductDetail",
+          liveProduct.id,
+          "해당 빈티지 피스를 안전하게 구매/선점(배달 수령 정보 등록)하시려면 회원 로그인이 필요합니다. 로그인 완료 후 즉시 이 화면으로 소급 복귀합니다."
+        );
+      } else {
+        setActivePage("Login");
+      }
+      return;
+    }
+    // Open Checkout Dialog Modal
+    setShowOrderModal(true);
+  };
+
+  const handleOrderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (!recipientName.trim()) {
+      setOrderErr("수령인 성함을 입력해주세요.");
+      return;
+    }
+    if (!recipientPhone.trim()) {
+      setOrderErr("연락 업데이트를 위한 전화번호를 입력해주세요.");
+      return;
+    }
+    if (!shippingAddress.trim()) {
+      setOrderErr("우편 수령 배송지 주소를 정확히 기재해 주세요.");
+      return;
+    }
+
+    setOrdering(true);
+    setOrderErr("");
+
+    try {
+      const orderId = "order_" + user.uid + "_" + Date.now();
+
+      // Double-check real-time product state as extra failure protection
+      if (liveProduct.isSoldOut) {
+        throw new Error("죄송합니다. 이 단 하나의 빈티지 제품은 방금 전 다른 구매자에 의해 품절 소화되었습니다.");
+      }
+
+      // 1. Create order document in orders collection
+      const isSizeSelectionCategory = ["tops", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
+      const orderData = {
+        userId: user.uid,
+        userEmail: user.email || "guest",
+        productId: liveProduct.id,
+        productName: liveProduct.name,
+        productPrice: liveProduct.price,
+        productImageUrl: liveProduct.imageUrl,
+        recipientName: recipientName.trim(),
+        recipientPhone: recipientPhone.trim(),
+        shippingAddress: shippingAddress.trim(),
+        size: (isSizeSelectionCategory && selectedSize) ? selectedSize : liveProduct.size,
+        status: "pending",
+        createdAt: serverTimestamp(),
+      };
+
+      await setDoc(doc(db, "orders", orderId), orderData);
+
+      // 2. Transitionally flag products inside collection as sold out (our rules permit this specific status adjust)
+      const rawProductRef = doc(db, "products", liveProduct.id);
+      await setDoc(rawProductRef, {
+        ...liveProduct,
+        createdAt: liveProduct.createdAt instanceof Date ? liveProduct.createdAt : (liveProduct.createdAt as any).toDate ? (liveProduct.createdAt as any).toDate() : new Date(),
+        isSoldOut: true
+      });
+
+      setLastOrderId(orderId);
+      setOrderSuccess(true);
+    } catch (error: any) {
+      console.error("Order submission failed:", error);
+      const friendlyMsg = handleFirestoreError(error, OperationType.WRITE, "orders");
+      setOrderErr(friendlyMsg || error.message || "주문 진행 및 입금 대기 설정 중 이상이 발견되었습니다.");
+    } finally {
+      setOrdering(false);
+    }
+  };
+
   const instagram = settings?.instagramUrl || "https://instagram.com/theodor_vintage";
   const allImages = [liveProduct.imageUrl, ...( (liveProduct as any).detailImageUrls || [] )].filter(Boolean);
+  const isSizeSelectionCategory = ["tops", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -286,45 +400,84 @@ export default function ProductDetailView({
             </div>
           </div>
 
+          {/* Size Choice Component if category matches */}
+          {isSizeSelectionCategory && (
+            <div className="space-y-3 pt-5 border-t border-stone-200">
+              <div className="flex items-center justify-between pb-1">
+                <label className="text-[11px] uppercase tracking-widest text-[#8C624E] block font-mono font-bold">
+                  Select Size (사이즈 선택) <span className="text-red-500">*</span>
+                </label>
+                {selectedSize && (
+                  <span className="text-xs text-[#1A3020] font-medium bg-[#FAF7F0] px-2 py-0.5 rounded-sm border border-[#1A3020]/10 font-mono">
+                    Size {selectedSize} Selected
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-3">
+                {["S", "M", "L"].map((sz) => (
+                  <button
+                    key={sz}
+                    type="button"
+                    onClick={() => {
+                      setSelectedSize(sz);
+                      setSizeError("");
+                    }}
+                    className={`flex-1 text-center py-4 text-xs font-bold uppercase tracking-widest rounded-xs border transition-all duration-200 cursor-pointer ${
+                      selectedSize === sz
+                        ? "bg-[#2C302E] border-[#2C302E] text-[#FAF7F0] font-serif shadow-md hover:brightness-105 scale-[1.01]"
+                        : "bg-white border-stone-300 text-stone-600 hover:border-[#8C624E]/80 hover:text-[#8C624E] font-serif hover:bg-[#FAF7F0]/30"
+                    }`}
+                  >
+                    Size {sz}
+                  </button>
+                ))}
+              </div>
+              {sizeError ? (
+                <p className="text-xs text-red-650 font-medium font-sans mt-2 flex items-center space-x-1 animate-pulse">
+                  <span>* {sizeError}</span>
+                </p>
+              ) : (
+                <p className="text-[11px] text-stone-400 font-light leading-relaxed">
+                  * 본 카테고리는 S / M / L 중 원하시는 맞춤 사이즈 선택 완료 후에 구매(Order Now)가 가능합니다.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Interactive Actions Panel */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-4 border-t border-stone-200">
+          <div className="flex flex-col gap-4 pt-4 border-t border-stone-200">
             
-            {/* Wishlist toggle */}
-            <button
-              onClick={() => toggleFavorite(liveProduct.id)}
-              className={`flex items-center justify-center p-4 border rounded-xs transition-colors shrink-0 focus:outline-hidden ${
-                isFavorited
-                  ? "bg-red-50 border-red-200 text-red-500"
-                  : "border-stone-300 text-stone-400 hover:text-red-500 hover:border-red-200"
-              }`}
-              id="like-button"
-            >
-              <Heart className="w-5 h-5" fill={isFavorited ? "currentColor" : "none"} />
-            </button>
-
-            {/* Instagram DM button */}
-            {instagram && (
-              <a
-                href={instagram}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 text-center bg-white border border-[#2C302E] hover:bg-stone-50 text-[#2C302E] py-4 text-xs font-semibold uppercase tracking-widest transition-all flex items-center justify-center space-x-2 rounded-xs"
+            <div className="flex items-stretch gap-4">
+              {/* Wishlist toggle */}
+              <button
+                onClick={() => toggleFavorite(liveProduct.id)}
+                className={`flex items-center justify-center p-4.5 border rounded-xs transition-colors shrink-0 focus:outline-hidden ${
+                  isFavorited
+                    ? "bg-red-50 border-red-200 text-red-500"
+                    : "border-stone-300 text-stone-400 hover:text-red-500 hover:border-red-200"
+                }`}
+                id="like-button"
               >
-                <Instagram className="w-4 h-4 text-stone-700" />
-                <span>Instagram DM Contact</span>
-              </a>
-            )}
+                <Heart className="w-5.5 h-5.5" fill={isFavorited ? "currentColor" : "none"} />
+              </button>
 
-            {/* Direct inquiry trigger scroll */}
-            <button
-              onClick={() => {
-                const el = document.getElementById("qna-form-section");
-                if (el) el.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="flex-1 text-center bg-[#2C302E] hover:bg-[#8C624E] text-[#FAF7F0] py-4 text-xs font-semibold uppercase tracking-widest transition-colors block border border-[#2C302E] rounded-xs"
-            >
-              문의하기 (Send Inquiry)
-            </button>
+              {/* Purchase Trigger Button */}
+              {liveProduct.isSoldOut ? (
+                <button
+                  disabled
+                  className="flex-1 text-center bg-stone-100 text-stone-400 border border-stone-200 py-4.5 text-xs font-semibold uppercase tracking-widest rounded-xs cursor-not-allowed"
+                >
+                  품절된 상품 (SOLD OUT)
+                </button>
+              ) : (
+                <button
+                  onClick={handleOrderClick}
+                  className="flex-1 text-center bg-[#8C624E] hover:bg-[#754f3d] text-white py-4.5 px-6 text-xs sm:text-sm font-bold uppercase tracking-widest transition-all duration-200 block rounded-xs shadow-md hover:shadow-lg hover:brightness-105 active:scale-98 cursor-pointer font-serif"
+                >
+                  구매하기 (Order Now)
+                </button>
+              )}
+            </div>
 
           </div>
 
@@ -455,6 +608,207 @@ export default function ProductDetailView({
           </div>
         )}
       </div>
+
+      {/* 5. Purchase Order Checkout Modal overlay */}
+      <AnimatePresence>
+        {showOrderModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => { if (!ordering) { setShowOrderModal(false); setOrderSuccess(false); setOrderErr(""); } }}
+              className="absolute inset-0 bg-[#2C302E]/60 backdrop-blur-xs"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white border border-[#8C624E]/15 rounded-xs w-full max-w-lg overflow-hidden shadow-2xl relative z-10 max-h-[95vh] flex flex-col"
+            >
+              
+              {/* Header */}
+              <div className="bg-[#FAF7F0] border-b border-[#8C624E]/10 px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Sparkles className="w-5 h-5 text-[#8C624E]" />
+                  <h3 className="text-sm font-serif text-[#2C302E] font-medium">Boutique Vintage Checkout (주문서 작성)</h3>
+                </div>
+                {!ordering && (
+                  <button
+                    onClick={() => { setShowOrderModal(false); setOrderSuccess(false); setOrderErr(""); }}
+                    className="text-stone-400 hover:text-stone-600 font-mono text-xs uppercase px-1 transition-colors cursor-pointer"
+                  >
+                    Close
+                  </button>
+                )}
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="p-6 overflow-y-auto space-y-6 flex-1 text-stone-700">
+                
+                {orderSuccess ? (
+                  <div className="text-center space-y-5 py-6">
+                    <div className="w-14 h-14 bg-[#2D4236] text-[#FAF7F0] rounded-full flex items-center justify-center mx-auto shadow-xs">
+                      <ShieldCheck className="w-8 h-8" />
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-md font-serif text-[#1A3020] font-semibold">주문 및 상품 선점이 성료되었습니다!</h4>
+                      <p className="text-xs text-stone-500 font-light leading-relaxed max-w-sm mx-auto">
+                        감사합니다. 단 한 세트의 소장용 빈티지 제품이 안전하게 판매(SOLD OUT) 처리되었으며, 대기 처리되었습니다. 수령지 정보와 계좌 입금 기한 정보는 등록해 주신 연락처로 가이드라인과 함께 영업시간 기준 수분 이내에 순차 송신됩니다.
+                      </p>
+                    </div>
+                    
+                    <div className="bg-[#FAF7F0] p-4 text-left border border-[#8C624E]/10 rounded-xs text-[11px] space-y-1.5 font-mono">
+                      <div className="flex justify-between">
+                        <span className="text-stone-400">Order Document ID:</span>
+                        <span className="text-stone-600 font-medium select-all">{lastOrderId}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-stone-400">Recipient Name:</span>
+                        <span className="text-stone-700 font-medium">{recipientName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-stone-400">Product:</span>
+                        <span className="text-stone-700 font-medium truncate max-w-[200px]">{liveProduct.name}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-stone-400">Total Price:</span>
+                        <span className="text-amber-800 font-semibold">{formattedPrice(liveProduct.price)}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setShowOrderModal(false);
+                        setOrderSuccess(false);
+                        setActivePage("MyPage");
+                      }}
+                      className="w-full bg-[#2C302E] hover:bg-[#8C624E] text-[#FAF7F0] py-3 text-xs uppercase tracking-widest font-semibold transition-colors rounded-xs shadow-xs cursor-pointer"
+                    >
+                      Go to "My Page" Order History
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleOrderSubmit} className="space-y-4">
+                    
+                    {/* Item Brief */}
+                    <div className="bg-[#FAF7F0]/50 p-4 border border-stone-150 rounded-xs flex gap-4 items-center">
+                      <div className="w-14 h-18 bg-stone-150 overflow-hidden shrink-0 border border-stone-200">
+                        <img src={liveProduct.imageUrl} alt={liveProduct.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[9px] uppercase font-mono tracking-widest text-[#8C624E]">Selected Archive Collection</span>
+                        <h4 className="text-sm font-serif font-semibold text-[#2C302E] truncate mt-0.5">{liveProduct.name}</h4>
+                        <div className="text-[10px] text-stone-400 font-mono mt-0.5">
+                          Size Tag: <span className="text-stone-600 font-semibold">{(["tops", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase()) && selectedSize) ? `${selectedSize} (Selected)` : liveProduct.size}</span> &middot; Price: <span className="text-amber-800 font-semibold">{formattedPrice(liveProduct.price)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {/* Recipient Name Input */}
+                      <div>
+                        <label className="text-[9px] uppercase tracking-widest text-[#2C302E]/60 block mb-1 font-mono font-bold">
+                          Recipient Name (수령인 성함) <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={recipientName}
+                          onChange={(e) => setRecipientName(e.target.value)}
+                          className="w-full bg-[#FAF7F0]/60 border border-[#8C624E]/10 rounded-xs py-2 px-3 text-xs focus:outline-hidden focus:border-[#8C624E]"
+                          placeholder="배송 받으실 분의 이름"
+                        />
+                      </div>
+
+                      {/* Phone Input */}
+                      <div>
+                        <label className="text-[9px] uppercase tracking-widest text-[#2C302E]/60 block mb-1 font-mono font-bold">
+                          Phone Number (수령인 연락처) <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={recipientPhone}
+                          onChange={(e) => setRecipientPhone(e.target.value)}
+                          className="w-full bg-[#FAF7F0]/60 border border-[#8C624E]/10 rounded-xs py-2 px-3 text-xs focus:outline-hidden focus:border-[#8C624E]"
+                          placeholder="010-0000-0000 (입금 및 운송안내 수신용)"
+                        />
+                      </div>
+
+                      {/* Shipping Address Input */}
+                      <div>
+                        <label className="text-[9px] uppercase tracking-widest text-[#2C302E]/60 block mb-1 font-mono font-bold">
+                          Shipping Address (배송 수령 주소) <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                          rows={2.5}
+                          required
+                          value={shippingAddress}
+                          onChange={(e) => setShippingAddress(e.target.value)}
+                          className="w-full bg-[#FAF7F0]/60 border border-[#8C624E]/10 rounded-xs py-2 px-3 text-xs focus:outline-hidden focus:border-[#8C624E] resize-none"
+                          placeholder="상세 우편 배송지와 공동현관 비밀번호 등 특이사항"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Vintage Notice Panel */}
+                    <div className="bg-amber-50/50 p-3.5 border border-amber-250/30 rounded-xs flex items-start space-x-2 text-[11px] text-amber-900 font-light">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <span className="font-semibold block font-serif text-amber-950">보티크 빈티지 안심 주문 주의사항</span>
+                        <p className="leading-relaxed">
+                          모든 아카이브 제품은 <strong>단 한 개의 객체</strong>만 존재합니다. 주문 전송이 완료된 직후 중복 선점을 방지하고자 데이터베이스 시스템에서 <strong>즉각 품절 처리</strong>됩니다. 단순 변심 취소 등은 지양해 주시기 바랍니다.
+                        </p>
+                      </div>
+                    </div>
+
+                    {orderErr && (
+                      <p className="text-xs text-red-700 font-medium flex items-center space-x-1.5 font-mono">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span>{orderErr}</span>
+                      </p>
+                    )}
+
+                    {/* Buttons */}
+                    <div className="flex space-x-3 pt-2">
+                      <button
+                        type="button"
+                        disabled={ordering}
+                        onClick={() => { setShowOrderModal(false); setOrderErr(""); }}
+                        className="w-1/3 border border-stone-300 hover:bg-stone-100 text-stone-600 transition-all py-3.5 text-xs uppercase tracking-widest font-semibold rounded-xs cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      
+                      <button
+                        type="submit"
+                        disabled={ordering}
+                        className="flex-1 bg-[#8C624E] hover:bg-[#754f3d] text-white transition-all duration-200 py-3.5 px-5 text-xs sm:text-sm font-bold uppercase tracking-widest flex items-center justify-center space-x-2 rounded-xs shadow-md hover:shadow-lg hover:brightness-105 active:scale-98 cursor-pointer font-serif"
+                      >
+                        {ordering ? (
+                          <span className="animate-pulse">Processing...</span>
+                        ) : (
+                          <>
+                            <ShieldCheck className="w-4.5 h-4.5" />
+                            <span>Confirm Order (주문 완료)</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                  </form>
+                )}
+
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

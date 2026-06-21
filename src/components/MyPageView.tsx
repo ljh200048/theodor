@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { User, Heart, MessageSquare, Sparkles, Clock, Trash2, ArrowRight } from "lucide-react";
-import { Product, Favorite, Inquiry } from "../types";
+import { User, Heart, MessageSquare, Sparkles, Clock, Trash2, ArrowRight, ShoppingBag } from "lucide-react";
+import { Product, Favorite, Inquiry, Order } from "../types";
 import { User as FirebaseUser } from "firebase/auth";
 import { collection, query, where, onSnapshot, doc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
@@ -29,6 +29,37 @@ export default function MyPageView({
 }: MyPageProps) {
   const [userInquiries, setUserInquiries] = useState<Inquiry[]>([]);
   const [loadingInquiries, setLoadingInquiries] = useState(true);
+  const [userOrders, setUserOrders] = useState<Order[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+
+  // Load orders made by this user
+  useEffect(() => {
+    const q = query(collection(db, "orders"), where("userId", "==", user.uid));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const list: Order[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            ...data,
+            createdAt: data.createdAt ? data.createdAt.toDate() : new Date(),
+          } as Order);
+        });
+        // Sort newest first
+        list.sort((a, b) => new Date(b.createdAt as any).getTime() - new Date(a.createdAt as any).getTime());
+        setUserOrders(list);
+        setLoadingOrders(false);
+      },
+      (error) => {
+        console.error("Error loading user orders Snap:", error);
+        setLoadingOrders(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user.uid]);
 
   // Load inquiries sent by this user
   useEffect(() => {
@@ -87,15 +118,20 @@ export default function MyPageView({
           </div>
         </div>
 
-        <div className="flex space-x-8 items-center text-center">
+        <div className="flex space-x-6 sm:space-x-8 items-center text-center">
           <div>
-            <span className="block text-2xl font-serif text-[#8C624E] font-bold">{favProducts.length}</span>
-            <span className="text-[10px] uppercase tracking-widest text-stone-400 font-mono">Wishlist Count</span>
+            <span className="block text-2.5xl font-serif text-[#8C624E] font-bold">{favProducts.length}</span>
+            <span className="text-[10px] uppercase tracking-widest text-stone-400 font-mono">Wishlist</span>
           </div>
           <div className="w-px h-8 bg-stone-300" />
           <div>
-            <span className="block text-2xl font-serif text-[#1A3020] font-bold">{userInquiries.length}</span>
-            <span className="text-[10px] uppercase tracking-widest text-stone-400 font-mono">Inquiry Count</span>
+            <span className="block text-2.5xl font-serif text-[#1A3020] font-bold">{userInquiries.length}</span>
+            <span className="text-[10px] uppercase tracking-widest text-stone-400 font-mono">Inquiry</span>
+          </div>
+          <div className="w-px h-8 bg-stone-300" />
+          <div>
+            <span className="block text-2.5xl font-serif text-amber-700 font-bold">{userOrders.length}</span>
+            <span className="text-[10px] uppercase tracking-widest text-stone-400 font-mono font-medium">Orders</span>
           </div>
         </div>
       </div>
@@ -237,6 +273,92 @@ export default function MyPageView({
           )}
         </div>
 
+      </div>
+
+      {/* 3. Order History Section */}
+      <div className="space-y-6 border-t border-stone-200 pt-16">
+        <div className="flex items-center space-x-2 pb-1">
+          <ShoppingBag className="w-5.5 h-5.5 text-amber-700" />
+          <h2 className="text-xl font-serif text-[#2C302E]">My Purchase History (구매 내역)</h2>
+        </div>
+
+        {loadingOrders ? (
+          <p className="text-xs text-stone-400 animate-pulse">Loading orders...</p>
+        ) : userOrders.length === 0 ? (
+          <div className="text-center py-16 border border-dashed border-stone-200 rounded-sm bg-[#FAF7F0]/20 space-y-3">
+            <ShoppingBag className="w-8 h-8 text-stone-300 mx-auto" />
+            <p className="text-xs text-stone-400 font-light">주문 내역이 비어 있습니다. 마음에 드는 셀렉션을 구매해 보세요.</p>
+            <button
+              onClick={() => setActivePage("Shop")}
+              className="px-5 py-2 text-xs uppercase tracking-widest bg-[#2C302E] text-[#FAF7F0] hover:bg-[#8C624E] transition-colors rounded-xs shadow-xs cursor-pointer"
+            >
+              Go to Boutique Catalog
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {userOrders.map((ord) => (
+              <div key={ord.id} className="bg-white border border-[#8C624E]/10 rounded-sm hover:border-[#8C624E]/20 transition-all p-5 shadow-xs flex flex-col sm:flex-row gap-5">
+                <div 
+                  onClick={() => ord.productId && viewProduct(ord.productId)}
+                  className="w-24 h-32 bg-stone-50 shrink-0 border border-stone-100 overflow-hidden cursor-pointer h-fit"
+                >
+                  <img src={ord.productImageUrl} alt={ord.productName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                </div>
+                
+                <div className="flex-1 space-y-3 min-w-0">
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="min-w-0">
+                      <h3 
+                        onClick={() => ord.productId && viewProduct(ord.productId)}
+                        className="text-sm font-serif text-[#2C302E] font-semibold truncate cursor-pointer hover:text-[#8C624E]"
+                      >
+                        {ord.productName}
+                      </h3>
+                      <p className="text-[10px] text-stone-400 font-mono">
+                        Size: {ord.size} &middot; Price: {formattedPrice(ord.productPrice)}
+                      </p>
+                    </div>
+
+                    <span className={`text-[10px] font-mono tracking-widest uppercase px-2 py-0.5 rounded-sm shrink-0 border ${
+                      ord.status === "completed"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : ord.status === "cancelled"
+                        ? "bg-red-50 text-red-600 border-red-200"
+                        : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}>
+                      {ord.status === "completed" ? "Completed" : ord.status === "cancelled" ? "Cancelled" : "Pending Order"}
+                    </span>
+                  </div>
+
+                  <div className="border-t border-stone-100 pt-2.5 space-y-1 text-[11px] text-stone-600 font-sans">
+                    <div className="flex justify-between">
+                      <span className="text-stone-400">Order ID:</span>
+                      <span className="font-mono text-stone-550 font-light select-all">{ord.id}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-stone-400">Recipient (수령인):</span>
+                      <span className="font-medium text-stone-700">{ord.recipientName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-stone-400">Phone (연락처):</span>
+                      <span className="text-stone-600 font-mono">{ord.recipientPhone}</span>
+                    </div>
+                    <div className="flex flex-col pt-1">
+                      <span className="text-stone-400">Address (배송지 주소):</span>
+                      <span className="text-stone-700 leading-relaxed font-light mt-0.5">{ord.shippingAddress}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-[10px] text-stone-400 font-mono flex items-center pt-1">
+                    <Clock className="w-3 h-3 mr-1" />
+                    <span>Order Date: {new Date(ord.createdAt as any).toLocaleDateString()} {new Date(ord.createdAt as any).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
     </div>
