@@ -84,7 +84,7 @@ export default function LoginView({ setActivePage, onLoginSuccess, initialNotice
         className="bg-[#FAF7F0] border border-[#8C624E]/10 px-8 py-10 shadow-xs rounded-xs space-y-8"
       >
         <div className="text-center space-y-2">
-          <span className="text-[10px] uppercase tracking-widest text-[#8C624E] font-medium font-mono">Boutique Member Lock</span>
+          <span className="text-[10px] uppercase tracking-widest text-[#8C624E] font-medium font-mono">Theodor Member Lock</span>
           <h1 className="text-3xl font-serif text-[#2C302E]">Sign In Shop</h1>
         </div>
 

@@ -85,7 +85,7 @@ export default function Footer({ settings, setActivePage }: FooterProps) {
 
         {/* Curation Info */}
         <div className="space-y-4 text-xs tracking-wide text-[#FAF7F0]/50 font-light leading-6">
-          <h4 className="text-xs uppercase tracking-widest text-[#FAF7F0]/40 font-semibold mb-2">Boutique Office</h4>
+          <h4 className="text-xs uppercase tracking-widest text-[#FAF7F0]/40 font-semibold mb-2">Theodor Office</h4>
           <p>theodor_vintage, CEO: Theodor L. | Business No: 120-vintage-88</p>
           <p>Address: 1106 2-sunhwan-ro, Heungdeok-gu, Cheongju-si, Chungcheongbuk-do, South Korea</p>
           <p>CS: AM11:00 - PM17:00 (Weekend and Holiday Off)</p>

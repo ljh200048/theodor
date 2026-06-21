@@ -90,7 +90,7 @@ export default function ShopView({ products, setActivePage, setDetailedProductId
       
       {/* 1. Header & Search Banner */}
       <div className="text-center space-y-4 mb-16">
-        <span className="text-xs uppercase tracking-[0.4em] text-[#8C624E] font-semibold font-mono">Boutique Catalogue</span>
+        <span className="text-xs uppercase tracking-[0.4em] text-[#8C624E] font-semibold font-mono">Theodor Catalogue</span>
         <h1 className="text-4xl sm:text-5xl font-serif text-[#2C302E]">Current Collections</h1>
         <p className="text-sm text-[#2C302E]/60 max-w-lg mx-auto font-light leading-relaxed">
           Theodor Vintage selects only unique textiles with emotional appeal. Explore our fine condition vintage selections.
@@ -294,7 +294,14 @@ export default function ShopView({ products, setActivePage, setDetailedProductId
                       </h3>
                     </div>
                     <div className="flex justify-between items-center pt-2 border-t border-stone-200/45">
-                      <span className="text-xs text-stone-500 tracking-wider">Size {p.size}</span>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-stone-500 tracking-wider">Size {p.size}</span>
+                        {!p.isSoldOut && (
+                          <span className="text-[9px] text-[#2D4236] font-semibold mt-0.5 font-mono">
+                            {p.stockCount !== undefined ? `${p.stockCount} left` : "1 left"}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-sm font-semibold text-[#8C624E]">
                         {formattedPrice(p.price)}
                       </span>

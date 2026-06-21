@@ -86,7 +86,7 @@ export default function SignupView({ setActivePage, onSignupSuccess }: SignupPro
         </button>
 
         <div className="text-center space-y-2">
-          <span className="text-[10px] uppercase tracking-widest text-[#8C624E] font-medium font-mono">Boutique Register</span>
+          <span className="text-[10px] uppercase tracking-widest text-[#8C624E] font-medium font-mono">Theodor Register</span>
           <h1 className="text-3xl font-serif text-[#2C302E]">Create Account</h1>
         </div>
 

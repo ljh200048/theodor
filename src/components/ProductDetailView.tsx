@@ -15,13 +15,16 @@ import {
   Instagram,
   FileText,
   BadgeAlert,
-  Info
+  Info,
+  Check,
+  Clock
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ActivePage, Product, SiteSetting } from "../types";
 import { User } from "firebase/auth";
 import { collection, doc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../firebase";
+import { sendOrderEmails } from "../utils/emailService";
 
 interface ProductDetailProps {
   product: Product;
@@ -156,8 +159,14 @@ export default function ProductDetailView({
 
   const handleOrderClick = () => {
     const isSizeSelectionCategory = ["tops", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
+    const isShoesCategory = liveProduct.category.toLowerCase() === "shoes";
+
     if (isSizeSelectionCategory && !selectedSize) {
       setSizeError("구매 진행을 위해 S / M / L 중 원하시는 옷의 사이즈를 선택해 주세요.");
+      return;
+    }
+    if (isShoesCategory && (!selectedSize || !selectedSize.trim())) {
+      setSizeError("구매 진행을 위해 원하시는 신발 사이즈(예: 240, 270 등)를 입력해 주세요.");
       return;
     }
 
@@ -206,9 +215,15 @@ export default function ProductDetailView({
 
       // 1. Create order document in orders collection
       const isSizeSelectionCategory = ["tops", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
+      const isShoesCategory = liveProduct.category.toLowerCase() === "shoes";
+      const chosenSize = ((isSizeSelectionCategory || isShoesCategory) && selectedSize) ? selectedSize : liveProduct.size;
+      
       const orderData = {
         userId: user.uid,
         userEmail: user.email || "guest",
+        buyerName: recipientName.trim(),
+        buyerEmail: user.email || "guest",
+        buyerPhone: recipientPhone.trim(),
         productId: liveProduct.id,
         productName: liveProduct.name,
         productPrice: liveProduct.price,
@@ -216,27 +231,48 @@ export default function ProductDetailView({
         recipientName: recipientName.trim(),
         recipientPhone: recipientPhone.trim(),
         shippingAddress: shippingAddress.trim(),
-        size: (isSizeSelectionCategory && selectedSize) ? selectedSize : liveProduct.size,
+        size: chosenSize,
         status: "pending",
         createdAt: serverTimestamp(),
       };
 
       await setDoc(doc(db, "orders", orderId), orderData);
 
-      // 2. Transitionally flag products inside collection as sold out (our rules permit this specific status adjust)
+      // 2. Transitionally decrement stock Count and set soldOut flag if stock is 0 (Reserved)
+      const currentStock = liveProduct.stockCount !== undefined ? liveProduct.stockCount : 1;
+      const newStock = Math.max(0, currentStock - 1);
+      const nextIsSoldOut = newStock <= 0;
+
       const rawProductRef = doc(db, "products", liveProduct.id);
       await setDoc(rawProductRef, {
         ...liveProduct,
         createdAt: liveProduct.createdAt instanceof Date ? liveProduct.createdAt : (liveProduct.createdAt as any).toDate ? (liveProduct.createdAt as any).toDate() : new Date(),
-        isSoldOut: true
+        stockCount: newStock,
+        isSoldOut: nextIsSoldOut
       });
+
+      // 3. Send manual order/application confirmation emails
+      try {
+        await sendOrderEmails({
+          orderId,
+          productName: liveProduct.name,
+          productPrice: liveProduct.price,
+          recipientName: recipientName.trim(),
+          recipientPhone: recipientPhone.trim(),
+          shippingAddress: shippingAddress.trim(),
+          size: chosenSize,
+          buyerEmail: user.email || "guest",
+        });
+      } catch (errEmail) {
+        console.error("Failed to send automatic order emails:", errEmail);
+      }
 
       setLastOrderId(orderId);
       setOrderSuccess(true);
     } catch (error: any) {
       console.error("Order submission failed:", error);
       const friendlyMsg = handleFirestoreError(error, OperationType.WRITE, "orders");
-      setOrderErr(friendlyMsg || error.message || "주문 진행 및 입금 대기 설정 중 이상이 발견되었습니다.");
+      setOrderErr(friendlyMsg || error.message || "주문 진행 중 이상이 발견되었습니다.");
     } finally {
       setOrdering(false);
     }
@@ -245,6 +281,7 @@ export default function ProductDetailView({
   const instagram = settings?.instagramUrl || "https://instagram.com/theodor_vintage";
   const allImages = [liveProduct.imageUrl, ...( (liveProduct as any).detailImageUrls || [] )].filter(Boolean);
   const isSizeSelectionCategory = ["tops", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
+  const isShoesCategory = liveProduct.category.toLowerCase() === "shoes";
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -334,7 +371,7 @@ export default function ProductDetailView({
           </div>
 
           {/* Details / Specifications Quick List */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-[#FAF7F0] p-6 border border-[#8C624E]/5 rounded-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-[#FAF7F0] p-6 border border-[#8C624E]/5 rounded-xs font-sans">
             <div>
               <span className="text-[10px] uppercase tracking-widest text-[#2C302E]/40 block mb-1 font-mono">Tagged Size</span>
               <span className="text-sm font-medium text-[#2C302E]">{liveProduct.size}</span>
@@ -342,6 +379,16 @@ export default function ProductDetailView({
             <div>
               <span className="text-[10px] uppercase tracking-widest text-[#2C302E]/40 block mb-1 font-mono">Condition Rating</span>
               <span className="text-sm font-medium text-[#1A3020]">{liveProduct.condition}</span>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase tracking-widest text-[#2C302E]/40 block mb-1 font-mono">Stock / 남은 수량</span>
+              {liveProduct.isSoldOut || (liveProduct.stockCount !== undefined && liveProduct.stockCount <= 0) ? (
+                <span className="text-sm font-bold text-red-600">0개 (종료)</span>
+              ) : (
+                <span className="text-sm font-bold text-emerald-800 animate-pulse">
+                  {liveProduct.stockCount !== undefined ? `${liveProduct.stockCount}개 남음` : "1개 남음"}
+                </span>
+              )}
             </div>
             { (liveProduct as any).material && (
               <div className="col-span-2 sm:col-span-1">
@@ -439,6 +486,43 @@ export default function ProductDetailView({
               ) : (
                 <p className="text-[11px] text-stone-400 font-light leading-relaxed">
                   * 본 카테고리는 S / M / L 중 원하시는 맞춤 사이즈 선택 완료 후에 구매(Order Now)가 가능합니다.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Shoe Size Input Component if category is shoes */}
+          {isShoesCategory && (
+            <div className="space-y-3 pt-5 border-t border-stone-200">
+              <div className="flex items-center justify-between pb-1">
+                <label className="text-[11px] uppercase tracking-widest text-[#8C624E] block font-mono font-bold">
+                  Shoe Size (신발 사이즈 입력) <span className="text-red-500">*</span>
+                </label>
+                {selectedSize && selectedSize.trim() && (
+                  <span className="text-xs text-[#1A3020] font-medium bg-[#FAF7F0] px-2 py-0.5 rounded-sm border border-[#1A3020]/10 font-mono">
+                    Size {selectedSize} Entered
+                  </span>
+                )}
+              </div>
+              <div>
+                <input
+                  type="text"
+                  value={selectedSize || ""}
+                  onChange={(e) => {
+                    setSelectedSize(e.target.value);
+                    setSizeError("");
+                  }}
+                  className="w-full bg-[#FAF7F0]/60 border border-[#8C624E]/20 hover:border-[#8C624E]/50 focus:border-[#8C624E] rounded-xs py-3 px-4 text-xs font-serif focus:outline-hidden transition-all text-stone-800 placeholder-stone-400"
+                  placeholder="예: 240, 260 (원하시는 사이즈를 직접 입력해주세요)"
+                />
+              </div>
+              {sizeError ? (
+                <p className="text-xs text-red-650 font-medium font-sans mt-2 flex items-center space-x-1 animate-pulse">
+                  <span>* {sizeError}</span>
+                </p>
+              ) : (
+                <p className="text-[11px] text-stone-400 font-light leading-relaxed">
+                  * 슈즈(Shoes) 제품군은 원하시는 맞춤 신발 사이즈 입력 완료 후에 구매(Order Now)가 가능합니다.
                 </p>
               )}
             </div>
@@ -634,7 +718,7 @@ export default function ProductDetailView({
               <div className="bg-[#FAF7F0] border-b border-[#8C624E]/10 px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Sparkles className="w-5 h-5 text-[#8C624E]" />
-                  <h3 className="text-sm font-serif text-[#2C302E] font-medium">Boutique Vintage Checkout (주문서 작성)</h3>
+                  <h3 className="text-sm font-serif text-[#2C302E] font-medium">Theodor Vintage Checkout (주문서 작성)</h3>
                 </div>
                 {!ordering && (
                   <button
@@ -650,33 +734,70 @@ export default function ProductDetailView({
               <div className="p-6 overflow-y-auto space-y-6 flex-1 text-stone-700">
                 
                 {orderSuccess ? (
-                  <div className="text-center space-y-5 py-6">
-                    <div className="w-14 h-14 bg-[#2D4236] text-[#FAF7F0] rounded-full flex items-center justify-center mx-auto shadow-xs">
-                      <ShieldCheck className="w-8 h-8" />
+                  <div className="text-center space-y-6 py-6">
+                    <div className="w-14 h-14 bg-emerald-150 inline-flex text-emerald-800 rounded-full items-center justify-center shadow-sm">
+                      <Check className="w-8 h-8" />
                     </div>
                     <div className="space-y-2">
-                      <h4 className="text-md font-serif text-[#1A3020] font-semibold">주문 및 상품 선점이 성료되었습니다!</h4>
+                      <h4 className="text-base font-serif text-[#1A3020] font-bold">아카이브 상품 주문 신청이 완료되었습니다!</h4>
                       <p className="text-xs text-stone-500 font-light leading-relaxed max-w-sm mx-auto">
-                        감사합니다. 단 한 세트의 소장용 빈티지 제품이 안전하게 판매(SOLD OUT) 처리되었으며, 대기 처리되었습니다. 수령지 정보와 계좌 입금 기한 정보는 등록해 주신 연락처로 가이드라인과 함께 영업시간 기준 수분 이내에 순차 송신됩니다.
+                        선택하신 고유 소장용 빈티지 의류가 단독 선점되었으며, 입금 완료 시 신속한 세탁 및 발송 접수가 개시됩니다.
                       </p>
                     </div>
-                    
-                    <div className="bg-[#FAF7F0] p-4 text-left border border-[#8C624E]/10 rounded-xs text-[11px] space-y-1.5 font-mono">
+
+                    {/* 무통장 무통장 계좌이체 대화창 및 정보 팝업 */}
+                    <div className="bg-[#FAF7F0] border border-[#8C624E]/20 p-5 rounded-sm space-y-4 text-left font-sans">
+                      <div className="border-b border-[#8C624E]/10 pb-2 mb-2 flex justify-between items-center">
+                        <span className="text-[11px] uppercase tracking-widest text-[#8C624E] font-bold font-mono">무통장 계좌이체 안내</span>
+                        <span className="text-[10px] bg-amber-100 text-amber-800 font-mono px-2 py-0.5 rounded-sm font-semibold border border-amber-200">입금 확인 대기</span>
+                      </div>
+                      
+                      <div className="space-y-2.5 text-xs">
+                        <div className="flex justify-between items-center">
+                          <span className="text-stone-400 font-serif">계좌번호 (Bank Account)</span>
+                          <span className="font-bold text-[#1A3020] text-sm select-all">카카오뱅크 3333365056455</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-stone-400 font-serif">예금주 (Account Holder)</span>
+                          <span className="font-medium text-stone-800">신종민</span>
+                        </div>
+                        <div className="flex justify-between items-center border-t border-[#8C624E]/5 pt-2.5">
+                          <span className="text-stone-400 font-serif font-bold">송금 금액 (Payment Amount)</span>
+                          <span className="font-bold text-amber-800 text-sm">{formattedPrice(liveProduct.price)}</span>
+                        </div>
+                      </div>
+
+                      {/* 입금 확인 후 처리 예정 안내 문구 */}
+                      <div className="bg-white/80 p-3 rounded-xs border border-stone-200/50 text-[10px] sm:text-[11px] text-stone-605 font-light leading-relaxed space-y-1">
+                        <p className="text-[#8C624E] font-medium flex items-center space-x-1.5 pl-0.5">
+                          <AlertCircle className="w-3.5 h-3.5 inline shrink-0" />
+                          <span>안내 사항</span>
+                        </p>
+                        <p className="pl-0.5 pt-0.5 text-stone-500">
+                          - 고객님의 정교한 아카이브 출고를 위하여 <strong>"입금 확인 후 상품 발송 처리"</strong>가 신속히 개시될 예정입니다.
+                        </p>
+                        <p className="pl-0.5 text-stone-500">
+                          - 기재와 다른 입금자명으로 송금해주시는 경우, 테오도르 문의하기 채널 또는 어드민 메일로 미리 공유해 주시면 감사하겠습니다.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-stone-50 p-4 text-left border border-stone-200 rounded-xs text-[11px] space-y-2 font-mono">
                       <div className="flex justify-between">
-                        <span className="text-stone-400">Order Document ID:</span>
-                        <span className="text-stone-600 font-medium select-all">{lastOrderId}</span>
+                        <span className="text-stone-400">Order ID:</span>
+                        <span className="text-stone-600 font-medium select-all text-xs">{lastOrderId}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-stone-400">Recipient Name:</span>
                         <span className="text-stone-700 font-medium">{recipientName}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-stone-400">Product:</span>
-                        <span className="text-stone-700 font-medium truncate max-w-[200px]">{liveProduct.name}</span>
+                        <span className="text-stone-400">Selected Size:</span>
+                        <span className="text-stone-700 font-medium font-bold">{(["tops", "dresses", "outerwear", "shoes"].includes(liveProduct.category.toLowerCase()) && selectedSize) ? `${selectedSize}` : liveProduct.size}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-stone-400">Total Price:</span>
-                        <span className="text-amber-800 font-semibold">{formattedPrice(liveProduct.price)}</span>
+                        <span className="text-stone-400">Ordered Product:</span>
+                        <span className="text-stone-700 font-medium truncate max-w-[200px]">{liveProduct.name}</span>
                       </div>
                     </div>
 
@@ -686,9 +807,9 @@ export default function ProductDetailView({
                         setOrderSuccess(false);
                         setActivePage("MyPage");
                       }}
-                      className="w-full bg-[#2C302E] hover:bg-[#8C624E] text-[#FAF7F0] py-3 text-xs uppercase tracking-widest font-semibold transition-colors rounded-xs shadow-xs cursor-pointer"
+                      className="w-full bg-[#1A3020] hover:bg-[#8C624E] text-[#FAF7F0] py-3.5 text-xs uppercase tracking-widest font-semibold transition-all rounded-xs shadow-md hover:shadow-lg active:scale-98 cursor-pointer font-serif"
                     >
-                      Go to "My Page" Order History
+                      Go to "My Page" to Track Status
                     </button>
                   </div>
                 ) : (
@@ -703,7 +824,7 @@ export default function ProductDetailView({
                         <span className="text-[9px] uppercase font-mono tracking-widest text-[#8C624E]">Selected Archive Collection</span>
                         <h4 className="text-sm font-serif font-semibold text-[#2C302E] truncate mt-0.5">{liveProduct.name}</h4>
                         <div className="text-[10px] text-stone-400 font-mono mt-0.5">
-                          Size Tag: <span className="text-stone-600 font-semibold">{(["tops", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase()) && selectedSize) ? `${selectedSize} (Selected)` : liveProduct.size}</span> &middot; Price: <span className="text-amber-800 font-semibold">{formattedPrice(liveProduct.price)}</span>
+                          Size Tag: <span className="text-stone-600 font-semibold">{(["tops", "dresses", "outerwear", "shoes"].includes(liveProduct.category.toLowerCase()) && selectedSize) ? `${selectedSize} (Selected)` : liveProduct.size}</span> &middot; Price: <span className="text-amber-800 font-semibold">{formattedPrice(liveProduct.price)}</span>
                         </div>
                       </div>
                     </div>
@@ -740,26 +861,27 @@ export default function ProductDetailView({
                       </div>
 
                       {/* Shipping Address Input */}
-                      <div>
-                        <label className="text-[9px] uppercase tracking-widest text-[#2C302E]/60 block mb-1 font-mono font-bold">
-                          Shipping Address (배송 수령 주소) <span className="text-red-500">*</span>
-                        </label>
-                        <textarea
-                          rows={2.5}
-                          required
-                          value={shippingAddress}
-                          onChange={(e) => setShippingAddress(e.target.value)}
-                          className="w-full bg-[#FAF7F0]/60 border border-[#8C624E]/10 rounded-xs py-2 px-3 text-xs focus:outline-hidden focus:border-[#8C624E] resize-none"
-                          placeholder="상세 우편 배송지와 공동현관 비밀번호 등 특이사항"
-                        />
-                      </div>
+                       <div>
+                         <label className="text-[9px] uppercase tracking-widest text-[#2C302E]/60 block mb-1 font-mono font-bold">
+                           Shipping Address (배송 수령 주소) <span className="text-red-500">*</span>
+                         </label>
+                         <textarea
+                           rows={2.5}
+                           required
+                           value={shippingAddress}
+                           onChange={(e) => setShippingAddress(e.target.value)}
+                           className="w-full bg-[#FAF7F0]/60 border border-[#8C624E]/10 rounded-xs py-2 px-3 text-xs focus:outline-hidden focus:border-[#8C624E] resize-none"
+                           placeholder="상세 우편 배송지와 공동현관 비밀번호 등 특이사항"
+                         />
+                       </div>
+
                     </div>
 
                     {/* Vintage Notice Panel */}
                     <div className="bg-amber-50/50 p-3.5 border border-amber-250/30 rounded-xs flex items-start space-x-2 text-[11px] text-amber-900 font-light">
                       <AlertCircle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
                       <div className="space-y-0.5">
-                        <span className="font-semibold block font-serif text-amber-950">보티크 빈티지 안심 주문 주의사항</span>
+                        <span className="font-semibold block font-serif text-amber-950">테오도르 빈티지 안심 주문 주의사항</span>
                         <p className="leading-relaxed">
                           모든 아카이브 제품은 <strong>단 한 개의 객체</strong>만 존재합니다. 주문 전송이 완료된 직후 중복 선점을 방지하고자 데이터베이스 시스템에서 <strong>즉각 품절 처리</strong>됩니다. 단순 변심 취소 등은 지양해 주시기 바랍니다.
                         </p>

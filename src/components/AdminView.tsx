@@ -21,11 +21,13 @@ import {
   Mail,
   Loader2,
   User,
+  ShoppingBag,
 } from "lucide-react";
-import { Product, SiteSetting, Inquiry, MoodCard, EventApplication } from "../types";
-import { collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { Product, SiteSetting, Inquiry, MoodCard, EventApplication, Order } from "../types";
+import { collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, getDoc } from "firebase/firestore";
 import { ref as sRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage, handleFirestoreError, OperationType } from "../firebase";
+import { sendOrderCancellationEmail } from "../utils/emailService";
 import { DEFAULT_PRODUCTS, DEFAULT_SETTINGS, DEFAULT_MOOD_CARDS } from "../mockData";
 import { User as FirebaseUser } from "firebase/auth";
 
@@ -36,7 +38,7 @@ interface AdminViewProps {
   user: FirebaseUser | null;
 }
 
-type AdminTab = "settings" | "products" | "inquiries" | "moodCards" | "applications";
+type AdminTab = "settings" | "products" | "inquiries" | "moodCards" | "applications" | "orders";
 
 export const ADMIN_EMAILS = ["jongminsin81@gmail.com", "lch200048@gmail.com"];
 export const IMG_PLACEHOLDER = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&q=80";
@@ -104,6 +106,7 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
   const [imageUrl, setImageUrl] = useState("");
   const [isSoldOut, setIsSoldOut] = useState(false);
   const [isRecommended, setIsRecommended] = useState(false);
+  const [stockCount, setStockCount] = useState<number>(1);
 
   // New detailed product states
   const [detailDescription, setDetailDescription] = useState("");
@@ -183,6 +186,11 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
   // Event Applications collection states
   const [allApplications, setAllApplications] = useState<EventApplication[]>([]);
   const [loadingApps, setLoadingApps] = useState(true);
+
+  // Orders collection states
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [updatingOrderStatus, setUpdatingOrderStatus] = useState<{ [orderId: string]: boolean }>({});
 
   const [formErr, setFormErr] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
@@ -264,6 +272,103 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
     }
   };
 
+  // Fetch all orders in system with live updates
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, "orders"),
+      (snapshot) => {
+        const list: Order[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            ...data,
+            createdAt: data.createdAt ? data.createdAt.toDate() : new Date(),
+          } as Order);
+        });
+        list.sort((a, b) => new Date(b.createdAt as any).getTime() - new Date(a.createdAt as any).getTime());
+        setAllOrders(list);
+        setLoadingOrders(false);
+      },
+      (error) => {
+        console.error("Admin loaded orders stream error:", error);
+        setLoadingOrders(false);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: any) => {
+    setUpdatingOrderStatus((prev) => ({ ...prev, [orderId]: true }));
+    try {
+      const orderRef = doc(db, "orders", orderId);
+      
+      // If we are changing status to 'cancelled', we also check and restore inventory count
+      // and send a cancellation email notification to admin.
+      if (newStatus === "cancelled") {
+        const orderSnap = await getDoc(orderRef);
+        if (orderSnap.exists()) {
+          const orderData = orderSnap.data();
+          if (orderData.status !== "cancelled" && orderData.productId) {
+            const productRef = doc(db, "products", orderData.productId);
+            const productSnap = await getDoc(productRef);
+            if (productSnap.exists()) {
+              const productData = productSnap.data();
+              const currentStock = productData.stockCount !== undefined ? Number(productData.stockCount) : 1;
+              const nextStock = currentStock + 1;
+              const nextIsSoldOut = nextStock <= 0;
+              await updateDoc(productRef, {
+                stockCount: nextStock,
+                isSoldOut: nextIsSoldOut,
+              });
+            }
+            
+            // Trigger cancellation alert email to admin
+            await sendOrderCancellationEmail({
+              orderId: orderId,
+              productName: orderData.productName,
+              productPrice: orderData.productPrice,
+              recipientName: orderData.recipientName,
+              recipientPhone: orderData.recipientPhone,
+              shippingAddress: orderData.shippingAddress,
+              size: orderData.size,
+              buyerEmail: orderData.userEmail || "",
+            });
+          }
+        }
+      } 
+      // If we are changing from cancelled BACK to something active, decrement stock count
+      else {
+        const orderSnap = await getDoc(orderRef);
+        if (orderSnap.exists()) {
+          const orderData = orderSnap.data();
+          if (orderData.status === "cancelled" && orderData.productId) {
+            const productRef = doc(db, "products", orderData.productId);
+            const productSnap = await getDoc(productRef);
+            if (productSnap.exists()) {
+              const productData = productSnap.data();
+              const currentStock = productData.stockCount !== undefined ? Number(productData.stockCount) : 1;
+              const nextStock = Math.max(0, currentStock - 1);
+              const nextIsSoldOut = nextStock <= 0;
+              await updateDoc(productRef, {
+                stockCount: nextStock,
+                isSoldOut: nextIsSoldOut,
+              });
+            }
+          }
+        }
+      }
+
+      await updateDoc(orderRef, {
+        status: newStatus,
+      });
+    } catch (err) {
+      console.error("Error updating order status:", err);
+    } finally {
+      setUpdatingOrderStatus((prev) => ({ ...prev, [orderId]: false }));
+    }
+  };
+
   // Update layout and set forms on editing
   const startEditProduct = (prod: Product) => {
     setEditingProduct(prod);
@@ -276,6 +381,7 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
     setImageUrl(prod.imageUrl);
     setIsSoldOut(prod.isSoldOut);
     setIsRecommended(prod.isRecommended);
+    setStockCount(prod.stockCount !== undefined ? prod.stockCount : 1);
     setDetailDescription((prod as any).detailDescription || "");
     setMeasurements((prod as any).measurements || "");
     setMaterial((prod as any).material || "");
@@ -298,6 +404,7 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
     setImageUrl("");
     setIsSoldOut(false);
     setIsRecommended(false);
+    setStockCount(1);
     setDetailDescription("");
     setMeasurements("");
     setMaterial("");
@@ -449,6 +556,9 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
     const path = "products";
 
     try {
+      const calculatedStock = Number(stockCount);
+      const finalIsSoldOut = calculatedStock <= 0 ? true : isSoldOut;
+
       if (editingProduct) {
         // UPDATE existing product using setDoc with { merge: true }
         const prodRef = doc(db, path, editingProduct.id);
@@ -460,8 +570,9 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
           condition,
           description: description.trim(),
           imageUrl: imageUrl.trim(),
-          isSoldOut,
+          isSoldOut: finalIsSoldOut,
           isRecommended,
+          stockCount: calculatedStock,
           detailDescription: detailDescription.trim(),
           measurements: measurements.trim(),
           material: material.trim(),
@@ -483,8 +594,9 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
           condition,
           description: description.trim(),
           imageUrl: imageUrl.trim(),
-          isSoldOut,
+          isSoldOut: finalIsSoldOut,
           isRecommended,
+          stockCount: calculatedStock,
           detailDescription: detailDescription.trim(),
           measurements: measurements.trim(),
           material: material.trim(),
@@ -502,6 +614,7 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
         setImageUrl("");
         setIsSoldOut(false);
         setIsRecommended(false);
+        setStockCount(1);
         setDetailDescription("");
         setMeasurements("");
         setMaterial("");
@@ -552,7 +665,7 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
 
   // Seeds 6 beautifully configured responsive clothing entities in code
   const handleSeedProducts = async () => {
-    if (!window.confirm("디오도어가 자랑하는 6종 프리미엄 가을 아카이브 기본 세일즈 데이터를 복사 등록하시겠습니까?")) return;
+    if (!window.confirm("테오도르가 자랑하는 6종 프리미엄 가을 아카이브 기본 세일즈 데이터를 복사 등록하시겠습니까?")) return;
     const path = "products";
     try {
       for (const p of DEFAULT_PRODUCTS) {
@@ -826,6 +939,16 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
           }`}
         >
           Event Slots ({allApplications.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("orders")}
+          className={`pb-3 text-sm font-medium tracking-wide border-b-2 uppercase focus:outline-hidden ${
+            activeTab === "orders"
+              ? "border-[#8C624E] text-[#8C624E]"
+              : "border-transparent text-stone-500 hover:text-stone-800"
+          }`}
+        >
+          Customer Orders ({allOrders.length})
         </button>
       </div>
 
@@ -1239,6 +1362,21 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
                 />
               </div>
 
+              {/* Stock Quantity */}
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-widest text-[#2C302E]/60 font-semibold font-mono block">
+                  Stock Quantity / 재고 수량 (개)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={stockCount}
+                  onChange={(e) => setStockCount(Math.max(0, Number(e.target.value)))}
+                  className="w-full bg-white border border-[#8C624E]/10 rounded-xs py-2 px-3 text-xs font-mono focus:outline-hidden"
+                  placeholder="1"
+                />
+              </div>
+
               {/* Checks */}
               <div className="flex flex-col gap-2 pt-1">
                 <label className="flex items-center space-x-3 text-xs text-stone-600 font-light cursor-pointer">
@@ -1452,6 +1590,9 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
                     <div className="flex items-center space-x-3 shrink-0 flex-wrap gap-y-2">
                       <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-medium ${p.isSoldOut ? "bg-stone-200 text-stone-500" : "bg-emerald-50 text-emerald-700 border border-emerald-100"}`}>
                         {p.isSoldOut ? "Sold Out" : "In Stock"}
+                      </span>
+                      <span className="text-[10px] text-[#8C624E] border border-[#8C624E]/20 bg-[#FAF7F0] px-2 py-0.5 rounded-sm font-semibold font-mono">
+                        재고: {p.stockCount !== undefined ? p.stockCount : 1}개
                       </span>
                       {p.isRecommended && (
                         <span className="text-[9px] uppercase bg-amber-50 text-amber-800 border border-amber-100 px-2 py-0.5 rounded-sm flex items-center space-x-0.5 font-medium">
@@ -1859,6 +2000,121 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 6: CUSTOMER ORDERS */}
+      {activeTab === "orders" && (
+        <div className="space-y-6 animate-fade-in text-left">
+          <div className="border-b border-stone-200 pb-3 p-1">
+            <h3 className="text-xl font-serif text-[#2C302E]">고객 주문 및 배송 관리 (Customer Orders)</h3>
+            <p className="text-xs text-stone-400 font-light mt-1">
+              고객들이 신청한 빈티지 컬렉션의 주문 내역 및 입금확인, 배송 상태를 한 화면에서 실시간으로 추적하고 변경제어합니다.
+            </p>
+          </div>
+
+          {loadingOrders ? (
+            <div className="text-center py-16">
+              <Loader2 className="w-8 h-8 text-[#8C624E] animate-spin mx-auto" />
+              <p className="text-xs text-stone-400 mt-2 font-mono">Loading orders dataset...</p>
+            </div>
+          ) : allOrders.length === 0 ? (
+            <div className="text-center py-24 bg-[#FAF7F0] border border-stone-200/50 rounded-xs space-y-4">
+              <ShoppingBag className="w-8 h-8 text-stone-300 mx-auto" />
+              <p className="text-xs text-stone-400 font-light">
+                신청된 고객 주문 내역이 하나도 없습니다.<br />고객들이 상품 상세 페이지에서 무통장 주문 신청 시 이곳에 실시간 연동됩니다.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white border border-stone-200/60 rounded-xs overflow-hidden shadow-2xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-[#FAF7F0] text-stone-600 font-mono text-[10px] uppercase tracking-wider border-b border-stone-200">
+                      <th className="py-3 px-4 font-semibold">주문 번호 / ID</th>
+                      <th className="py-3 px-4 font-semibold">아카이브 상품 / Collection Product</th>
+                      <th className="py-3 px-4 font-semibold font-mono">가 격 / Price</th>
+                      <th className="py-3 px-4 font-semibold">배송지 수령인 / Recipient Details</th>
+                      <th className="py-3 px-4 font-semibold">주문 일시 / Order Date</th>
+                      <th className="py-3 px-4 font-semibold">상 태 / Status Control</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {allOrders.map((ord) => (
+                      <tr key={ord.id} className="hover:bg-stone-50/50 transition-colors text-stone-700">
+                        <td className="py-4 px-4 font-mono text-[11px] select-all max-w-[100px] truncate" title={ord.id}>
+                          #{ord.id}
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex items-center space-x-3">
+                            <img
+                              src={ord.productImageUrl}
+                              alt={ord.productName}
+                              className="w-10 h-12 object-cover bg-stone-50 border border-stone-100 shrink-0"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="min-w-0">
+                              <h4 className="font-serif text-sm text-[#2C302E] font-medium leading-tight truncate max-w-[180px]">
+                                {ord.productName}
+                              </h4>
+                              <p className="text-[10px] text-stone-400 mt-0.5">
+                                Size: {ord.size}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 font-mono font-semibold text-[#8C624E]">
+                          {new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW" }).format(ord.productPrice)}
+                        </td>
+                        <td className="py-4 px-4 space-y-1">
+                          <div className="font-medium text-[#2C302E]">{ord.recipientName} ({ord.recipientPhone})</div>
+                          <div className="text-[10px] text-stone-500 max-w-[200px] truncate leading-relaxed" title={ord.shippingAddress}>
+                            {ord.shippingAddress}
+                          </div>
+                          <div className="text-[10px] text-stone-400 font-mono font-light select-all">
+                            Account: {ord.userEmail || "Anonymous"}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 font-mono text-stone-400 text-[10px]">
+                          {new Date(ord.createdAt as any).toLocaleString("ko-KR")}
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex items-center space-x-2">
+                            {updatingOrderStatus[ord.id] ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-[#8C624E]" />
+                            ) : (
+                              <select
+                                value={ord.status}
+                                onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value as any)}
+                                className={`text-[11px] font-mono border rounded-sm py-1 px-2 cursor-pointer bg-white focus:outline-hidden focus:ring-0 ${
+                                  ord.status === "completed" || ord.status === "delivered"
+                                    ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                                    : ord.status === "cancelled"
+                                    ? "text-red-650 bg-red-50 border-red-200"
+                                    : ord.status === "shipped"
+                                    ? "text-blue-700 bg-blue-50 border-blue-200"
+                                    : ord.status === "confirmed"
+                                    ? "text-indigo-700 bg-indigo-50 border-indigo-200"
+                                    : "text-amber-700 bg-amber-50 border-amber-200"
+                                }`}
+                              >
+                                <option value="pending">Pending (신청대기)</option>
+                                <option value="confirmed">Confirmed (입금완료)</option>
+                                <option value="shipped">Shipped (배송중)</option>
+                                <option value="delivered">Delivered (배송완료)</option>
+                                <option value="completed">Completed (구매확정)</option>
+                                <option value="cancelled">Cancelled (취소완료)</option>
+                              </select>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

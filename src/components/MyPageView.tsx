@@ -7,8 +7,9 @@ import React, { useState, useEffect } from "react";
 import { User, Heart, MessageSquare, Sparkles, Clock, Trash2, ArrowRight, ShoppingBag } from "lucide-react";
 import { Product, Favorite, Inquiry, Order } from "../types";
 import { User as FirebaseUser } from "firebase/auth";
-import { collection, query, where, onSnapshot, doc, deleteDoc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, deleteDoc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
+import { sendOrderCancellationEmail } from "../utils/emailService";
 
 interface MyPageProps {
   user: FirebaseUser;
@@ -31,6 +32,59 @@ export default function MyPageView({
   const [loadingInquiries, setLoadingInquiries] = useState(true);
   const [userOrders, setUserOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
+
+  // Cancellation States
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [cancellingError, setCancellingError] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const handleCancelOrder = async (order: Order) => {
+    setIsCancelling(true);
+    setCancellingError(null);
+    try {
+      // 1. Update order status to 'cancelled' in Firestore
+      const orderRef = doc(db, "orders", order.id);
+      await updateDoc(orderRef, {
+        status: "cancelled",
+      });
+
+      // 2. Load latest product data and restore/increment stock count
+      if (order.productId) {
+        const productRef = doc(db, "products", order.productId);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+          const productData = productSnap.data();
+          const currentStock = productData.stockCount !== undefined ? Number(productData.stockCount) : 1;
+          const nextStock = currentStock + 1;
+          const nextIsSoldOut = nextStock <= 0;
+          
+          await updateDoc(productRef, {
+            stockCount: nextStock,
+            isSoldOut: nextIsSoldOut,
+          });
+        }
+      }
+
+      // 3. Send email cancellation notification to administrator
+      await sendOrderCancellationEmail({
+        orderId: order.id,
+        productName: order.productName,
+        productPrice: order.productPrice,
+        recipientName: order.recipientName,
+        recipientPhone: order.recipientPhone,
+        shippingAddress: order.shippingAddress,
+        size: order.size,
+        buyerEmail: order.userEmail || user.email || "",
+      });
+
+      setCancellingOrderId(null);
+    } catch (err: any) {
+      console.error("Error cancelling order:", err);
+      setCancellingError("주문을 취소하는 과정에서 오류가 발생했습니다: " + (err.message || err));
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   // Load orders made by this user
   useEffect(() => {
@@ -264,7 +318,7 @@ export default function MyPageView({
                     </div>
                   ) : (
                     <p className="text-[10px] text-stone-400 italic pl-1 font-sans">
-                      * 디오도어 스태프가 문의 내용을 점검하고 있으며 메일 회신 및 답변 처리를 빠르게 대기 중입니다.
+                      * 테오도르 스태프가 문의 내용을 점검하고 있으며 메일 회신 및 답변 처리를 빠르게 대기 중입니다.
                     </p>
                   )}
                 </div>
@@ -292,7 +346,7 @@ export default function MyPageView({
               onClick={() => setActivePage("Shop")}
               className="px-5 py-2 text-xs uppercase tracking-widest bg-[#2C302E] text-[#FAF7F0] hover:bg-[#8C624E] transition-colors rounded-xs shadow-xs cursor-pointer"
             >
-              Go to Boutique Catalog
+              Go to Theodor Catalog
             </button>
           </div>
         ) : (
@@ -321,13 +375,27 @@ export default function MyPageView({
                     </div>
 
                     <span className={`text-[10px] font-mono tracking-widest uppercase px-2 py-0.5 rounded-sm shrink-0 border ${
-                      ord.status === "completed"
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      ord.status === "completed" || ord.status === "delivered"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-250/40"
                         : ord.status === "cancelled"
-                        ? "bg-red-50 text-red-600 border-red-200"
-                        : "bg-amber-50 text-amber-700 border-amber-200"
+                        ? "bg-red-50 text-red-600 border-red-250/40"
+                        : ord.status === "shipped"
+                        ? "bg-blue-50 text-blue-700 border-blue-250/30"
+                        : ord.status === "confirmed"
+                        ? "bg-indigo-50 text-indigo-700 border-indigo-250/30"
+                        : "bg-amber-50 text-amber-700 border-amber-250/40 animate-pulse"
                     }`}>
-                      {ord.status === "completed" ? "Completed" : ord.status === "cancelled" ? "Cancelled" : "Pending Order"}
+                      {ord.status === "completed" 
+                        ? "Completed" 
+                        : ord.status === "cancelled" 
+                        ? "Cancelled" 
+                        : ord.status === "confirmed"
+                        ? "Confirmed / 입금확인"
+                        : ord.status === "shipped"
+                        ? "Shipped / 배송중"
+                        : ord.status === "delivered"
+                        ? "Delivered / 배송완료"
+                        : "Pending / 입금대기"}
                     </span>
                   </div>
 
@@ -354,6 +422,60 @@ export default function MyPageView({
                     <Clock className="w-3 h-3 mr-1" />
                     <span>Order Date: {new Date(ord.createdAt as any).toLocaleDateString()} {new Date(ord.createdAt as any).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                   </div>
+
+                  {/* Cancel Order Section */}
+                  {ord.status !== "cancelled" ? (
+                    <div className="border-t border-dashed border-stone-100 pt-3 flex flex-col gap-2">
+                      {cancellingOrderId === ord.id ? (
+                        <div className="bg-red-50/50 p-3 rounded-xs border border-red-100/60 text-xs space-y-2 font-sans">
+                          <p className="font-medium text-red-800">
+                            정말 이 주문을 취소하시겠습니까?<br/>
+                            <span className="text-[10px] text-stone-500 font-normal block mt-1">* 취소 시 아카이브 개별 상품의 재고가 복구되고, 관리자에게 즉시 취소 알림이 이메일로 전송됩니다.</span>
+                          </p>
+                          {cancellingError && (
+                            <p className="text-[10px] text-red-650 font-bold">{cancellingError}</p>
+                          )}
+                          <div className="flex space-x-2 pt-1">
+                            <button
+                              disabled={isCancelling}
+                              onClick={() => handleCancelOrder(ord)}
+                              className="px-3 py-1.5 text-[11px] font-medium bg-red-650 hover:bg-red-700 text-white rounded-xs transition-colors disabled:opacity-50 cursor-pointer"
+                            >
+                              {isCancelling ? "취소 중..." : "예, 주문 취소"}
+                            </button>
+                            <button
+                              disabled={isCancelling}
+                              onClick={() => {
+                                setCancellingOrderId(null);
+                                setCancellingError(null);
+                              }}
+                              className="px-3 py-1.5 text-[11px] font-medium bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xs transition-colors disabled:opacity-50 cursor-pointer"
+                            >
+                              돌아가기
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex justify-end pt-1">
+                          <button
+                            onClick={() => {
+                              setCancellingOrderId(ord.id);
+                              setCancellingError(null);
+                            }}
+                            className="px-3 py-1.5 text-[11px] font-serif border border-red-100 hover:bg-red-50 hover:text-red-700 text-red-600 rounded-xs transition-all cursor-pointer"
+                          >
+                            주문 신청 취소 (Cancel Order)
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="border-t border-dashed border-stone-100 pt-3">
+                      <p className="text-[10px] text-red-500/80 italic font-medium font-sans">
+                        * 본 상품 주문은 정상 취소 및 재고가 회수 처리되었습니다.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

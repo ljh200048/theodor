@@ -54,6 +54,8 @@ export default function App() {
   const [detailedProductId, setDetailedProductId] = useState<string | null>(null);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
 
+
+
   // 1. Authenticated User Listeners
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (authUser) => {
@@ -416,6 +418,8 @@ export default function App() {
           onSignOut={handleSignOut}
         />
       )}
+
+
     </div>
   );
 }

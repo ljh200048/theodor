@@ -16,6 +16,7 @@ export interface Product {
   imageUrl: string;
   isSoldOut: boolean;
   isRecommended: boolean;
+  stockCount?: number;
   createdAt: Timestamp | Date;
   detailDescription?: string;
   measurements?: string;

@@ -175,7 +175,7 @@ export default function HomeView({
               </div>
               <div className="space-y-1.5 text-center">
                 <span className="text-[10px] uppercase tracking-widest text-[#2C302E]/50 font-mono">
-                  {product.category} &middot; Size {product.size}
+                  {product.category} &middot; Size {product.size} &middot; {!product.isSoldOut && (product.stockCount !== undefined ? `${product.stockCount} left` : "1 left")}
                 </span>
                 <h3 className="text-base font-medium text-[#2C302E] font-serif group-hover:text-[#8C624E] transition-colors">
                   {product.name}
@@ -224,8 +224,8 @@ export default function HomeView({
                   )}
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[9px] uppercase tracking-widest font-mono text-stone-400">
-                    {product.condition.split(":")[0]} Condition
+                  <span className="text-[9px] uppercase tracking-widest font-mono text-stone-400 block">
+                    {product.condition.split(":")[0]} Condition &middot; {!product.isSoldOut && (product.stockCount !== undefined ? `${product.stockCount} left` : "1 left")}
                   </span>
                   <h3 className="text-sm font-medium text-[#2C302E] truncate font-serif">
                     {product.name}

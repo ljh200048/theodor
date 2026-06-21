@@ -42,10 +42,10 @@ export default function AboutView() {
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 space-y-6">
-          <span className="text-xs uppercase tracking-[0.45em] text-[#8C624E] font-bold font-mono">Boutique Brand Origin</span>
+          <span className="text-xs uppercase tracking-[0.45em] text-[#8C624E] font-bold font-mono">Theodor Brand Origin</span>
           <h1 className="text-4xl sm:text-6xl font-serif text-[#2C302E]">Our Story & Philosophy</h1>
           <p className="text-sm sm:text-base text-stone-500 max-w-xl mx-auto leading-relaxed font-light">
-            한 옷에 담긴 흘러간 시간과 소박하면서도 깊이 있는 패브릭 무늬를 새로운 소유자의 감각과 결합해 단 하나의 특별한 이야기를 창조하는 수집 예술, 디오도어 빈티지입니다.
+            한 옷에 담긴 흘러간 시간과 소박하면서도 깊이 있는 패브릭 무늬를 새로운 소유자의 감각과 결합해 단 하나의 특별한 이야기를 창조하는 수집 예술, 테오도르 빈티지입니다.
           </p>
         </div>
       </section>

@@ -17,7 +17,11 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && (request.auth.token.email == "jongminsin81@gmail.com" || request.auth.token.email == "lch200048@gmail.com");
+      return isSignedIn() && (
+        request.auth.token.email == "jongminsin81@gmail.com" || 
+        request.auth.token.email == "lch200048@gmail.com" ||
+        request.auth.uid == "rl5A9Goztzfy6Z6q6OYou36ii9I3"
+      );
     }
 
     function isValidId(id) {
@@ -158,7 +162,7 @@ service cloud.firestore {
         && data.size is string
         && data.size.size() <= 50
         && data.status is string
-        && (data.status == "pending" || data.status == "completed" || data.status == "cancelled")
+        && (data.status == "pending" || data.status == "confirmed" || data.status == "shipped" || data.status == "delivered" || data.status == "completed" || data.status == "cancelled")
         && data.createdAt is timestamp;
     }
 
