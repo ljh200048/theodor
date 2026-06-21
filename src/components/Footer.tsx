@@ -6,6 +6,7 @@
 import React from "react";
 import { Instagram, Send, Sparkles } from "lucide-react";
 import { SiteSetting } from "../types";
+import Logo from "./Logo";
 
 interface FooterProps {
   settings: SiteSetting | null;
@@ -22,7 +23,14 @@ export default function Footer({ settings, setActivePage }: FooterProps) {
         
         {/* Brand Brief */}
         <div className="space-y-4">
-          <h3 className="text-xl font-serif tracking-widest text-[#FAF7F0]">theodor_vintage</h3>
+          <button 
+            onClick={() => setActivePage("Home")} 
+            className="flex items-center space-x-3 text-left hover:opacity-90 transition-opacity focus:outline-hidden"
+            title="theodor_vintage"
+          >
+            <Logo className="h-14 w-auto" />
+            <span className="text-xl font-serif font-medium tracking-widest text-[#FAF7F0] lowercase">theodor_vintage</span>
+          </button>
           <p className="text-sm text-[#FAF7F0]/60 max-w-sm font-light leading-relaxed">
             Curated vintage pieces for your own mood. We travel worldwide to collect authentic designs from past decades, keeping stories and aesthetics alive.
           </p>
@@ -79,7 +87,7 @@ export default function Footer({ settings, setActivePage }: FooterProps) {
         <div className="space-y-4 text-xs tracking-wide text-[#FAF7F0]/50 font-light leading-6">
           <h4 className="text-xs uppercase tracking-widest text-[#FAF7F0]/40 font-semibold mb-2">Boutique Office</h4>
           <p>theodor_vintage, CEO: Theodor L. | Business No: 120-vintage-88</p>
-          <p>Address: Seongsu-dong, Seoul, Rep. of Korea</p>
+          <p>Address: 1106 2-sunhwan-ro, Heungdeok-gu, Cheongju-si, Chungcheongbuk-do, South Korea</p>
           <p>CS: AM11:00 - PM17:00 (Weekend and Holiday Off)</p>
           <p className="flex items-center space-x-1 pt-1 text-[#8C624E]">
             <Sparkles className="w-3.5 h-3.5" />

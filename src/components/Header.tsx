@@ -8,6 +8,7 @@ import { Menu, X, User, Heart, Settings, LogOut, ShoppingBag, Sparkles } from "l
 import { motion, AnimatePresence } from "motion/react";
 import { ActivePage } from "../types";
 import { User as FirebaseUser } from "firebase/auth";
+import Logo from "./Logo";
 
 interface HeaderProps {
   activePage: ActivePage;
@@ -50,11 +51,12 @@ export default function Header({
           <div className="flex-1 flex justify-start">
             <button
               onClick={() => handleNav("Home")}
-              className="flex items-center space-x-2 text-2xl md:text-3xl font-serif tracking-widest text-[#2C302E] hover:opacity-80 transition-opacity focus:outline-hidden"
+              className="flex items-center space-x-2.5 hover:opacity-85 transition-opacity focus:outline-hidden py-1.5"
               id="brand-logo"
+              title="theodor_vintage"
             >
-              <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-[#8C624E]" />
-              <span>theodor_vintage</span>
+              <Logo className="h-11 md:h-13 w-auto" />
+              <span className="text-lg md:text-xl font-serif font-medium tracking-widest text-[#2C302E] lowercase">theodor_vintage</span>
             </button>
           </div>
 
