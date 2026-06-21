@@ -95,101 +95,31 @@ export default function HomeView({
         </div>
       </section>
 
-      {/* 2. TODAY'S NOTICE & EVENT CONTAINER */}
+      {/* 2. TODAY'S NOTICE CARD */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="bg-[#FAF7F0] border border-[#8C624E]/10 p-6 sm:p-10 rounded-xs space-y-8 shadow-xs"
+          className="bg-[#FAF7F0] border border-[#8C624E]/10 p-6 sm:p-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 rounded-xs"
         >
-          {/* Today's Notice Section */}
-          <div className={`flex flex-col md:flex-row justify-between items-start md:items-center gap-6 ${settings?.isEventActive ? "pb-8 border-b border-[#8C624E]/10" : ""}`}>
-            <div className="space-y-2.5 max-w-4xl text-left">
-              <span className="inline-flex items-center text-xs uppercase tracking-widest text-[#8C624E] font-semibold font-mono">
-                <AlertCircle className="w-3.5 h-3.5 mr-1.5" />
-                TODAY'S NOTICE
-              </span>
-              <h3 className="text-lg sm:text-xl font-serif text-[#2C302E] leading-snug">{title}</h3>
-              <p className="text-sm text-[#2C302E]/70 font-light leading-relaxed">
-                {text}
-              </p>
-            </div>
-            <button
-              onClick={() => setActivePage("Notice")}
-              className="inline-flex items-center space-x-1.5 text-xs text-[#8C624E] uppercase tracking-widest border-b border-[#8C624E]/30 pb-0.5 hover:border-[#8C624E] font-semibold transition-all shrink-0 cursor-pointer"
-            >
-              <span>Read Full Notice</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+          <div className="space-y-2 max-w-3xl text-left">
+            <span className="inline-flex items-center text-xs uppercase tracking-widest text-[#8C624E] font-semibold font-mono">
+              <AlertCircle className="w-3.5 h-3.5 mr-1.5" />
+              TODAY'S NOTICE
+            </span>
+            <h3 className="text-lg sm:text-xl font-serif text-[#2C302E] leading-snug">{title}</h3>
+            <p className="text-sm text-[#2C302E]/70 font-light leading-relaxed">
+              {text}
+            </p>
           </div>
-
-          {/* Active Event Slot (If Active is True) */}
-          {settings?.isEventActive && (
-            <div className="pt-2">
-              <div className="relative overflow-hidden bg-[#2D4236] text-white p-6 sm:p-8 rounded-xs flex flex-col md:flex-row justify-between items-stretch gap-6 md:gap-8 shadow-2xs">
-                {/* Elegant pattern */}
-                <div className="absolute inset-0 z-0 opacity-5 bg-[radial-gradient(#FAF7F0_1px,transparent_1px)] [background-size:16px_16px]" />
-                
-                <div className="relative z-10 flex-1 flex flex-col justify-between space-y-4 md:space-y-6">
-                  <div className="space-y-3 text-left">
-                    <div className="flex items-center space-x-2">
-                      <span className="inline-block bg-[#8C624E] text-[#FAF7F0] text-[9px] uppercase tracking-[0.2em] font-bold px-2.5 py-1 font-mono rounded-2xs">
-                        CURRENT EVENT
-                      </span>
-                      {settings.eventBadge && (
-                        <span className="inline-block bg-[#FAF7F0]/15 text-[#FAF7F0] text-[9px] uppercase tracking-[0.15em] font-light px-2.5 py-1 font-mono rounded-2xs">
-                          {settings.eventBadge}
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="text-xl sm:text-2xl font-serif tracking-wide leading-tight font-medium">
-                      {settings.eventTitle || "Special Archive Event"}
-                    </h3>
-                    {settings.eventText && (
-                      <p className="text-xs sm:text-sm text-[#FAF7F0]/80 font-light leading-relaxed max-w-2xl whitespace-pre-line">
-                        {settings.eventText}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="pt-2 text-left">
-                    {settings.eventLink ? (
-                      <a
-                        href={settings.eventLink}
-                        target={settings.eventLink.startsWith("http") ? "_blank" : "_self"}
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-6 py-3 rounded-xs"
-                      >
-                        <span>View Event Details</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </a>
-                    ) : (
-                      <button
-                        onClick={() => setActivePage("Shop")}
-                        className="inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-6 py-3 rounded-xs cursor-pointer"
-                      >
-                        <span>Explore Event Items</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {settings.eventImageUrl && (
-                  <div className="relative z-10 w-full md:w-[260px] lg:w-[320px] aspect-[16/10] md:aspect-[4/3] rounded-xs overflow-hidden border border-[#FAF7F0]/15 shadow-md shrink-0 group">
-                    <img
-                      src={settings.eventImageUrl}
-                      alt={settings.eventTitle || "Event banner"}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors duration-500" />
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          <button
+            onClick={() => setActivePage("Notice")}
+            className="inline-flex items-center space-x-1.5 text-xs text-[#8C624E] uppercase tracking-widest border-b border-[#8C624E]/30 pb-0.5 hover:border-[#8C624E] font-semibold transition-all shrink-0 cursor-pointer"
+          >
+            <span>Read Full Notice</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </motion.div>
       </section>
 

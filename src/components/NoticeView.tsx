@@ -4,15 +4,16 @@
  */
 
 import React, { useState } from "react";
-import { AlertCircle, Calendar, ShieldCheck, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertCircle, Calendar, ShieldCheck, HelpCircle, ChevronDown, ChevronUp, ArrowRight, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { SiteSetting } from "../types";
 
 interface NoticeProps {
   settings: SiteSetting | null;
+  setActivePage?: (page: string) => void;
 }
 
-export default function NoticeView({ settings }: NoticeProps) {
+export default function NoticeView({ settings, setActivePage }: NoticeProps) {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const title = settings?.noticeTitle || "theodor_vintage 릴리즈 및 배송 안내";
@@ -58,6 +59,81 @@ export default function NoticeView({ settings }: NoticeProps) {
           {text}
         </p>
       </div>
+
+      {/* Elegant Active Event Banner inside Notice list */}
+      {settings?.isEventActive && (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="relative overflow-hidden bg-[#2D4236] text-white p-6 sm:p-10 rounded-xs shadow-md"
+        >
+          {/* Elegant atmospheric background pattern */}
+          <div className="absolute inset-0 z-0 opacity-5 bg-[radial-gradient(#FAF7F0_1px,transparent_1px)] [background-size:20px_20px]" />
+          
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="flex-1 space-y-5 text-left">
+              <div className="flex items-center space-x-2">
+                <span className="inline-flex items-center bg-[#8C624E] text-[#FAF7F0] text-[9px] uppercase tracking-[0.25em] font-bold px-3 py-1 font-mono rounded-xs">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  CURRENT EVENT
+                </span>
+                {settings.eventBadge && (
+                  <span className="inline-block bg-white/10 text-[#FAF7F0]/90 text-[9px] uppercase tracking-[0.15em] font-light px-2.5 py-1 font-mono rounded-xs">
+                    {settings.eventBadge}
+                  </span>
+                )}
+              </div>
+              
+              <h2 className="text-2xl sm:text-3xl font-serif tracking-wide leading-tight text-[#FAF7F0]">
+                {settings.eventTitle || "Special Archive Event"}
+              </h2>
+              
+              {settings.eventText && (
+                <p className="text-sm text-[#FAF7F0]/85 font-light leading-relaxed max-w-2xl whitespace-pre-line">
+                  {settings.eventText}
+                </p>
+              )}
+
+              <div className="pt-2">
+                {settings.eventLink ? (
+                  <a
+                    href={settings.eventLink}
+                    target={settings.eventLink.startsWith("http") ? "_blank" : "_self"}
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-8 py-3.5 rounded-xs"
+                  >
+                    <span>View Event Details</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </a>
+                ) : (
+                  setActivePage && (
+                    <button
+                      onClick={() => setActivePage("Shop")}
+                      className="inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-8 py-3.5 rounded-xs cursor-pointer"
+                    >
+                      <span>Explore Collection</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
+
+            {settings.eventImageUrl && (
+              <div className="w-full md:w-[280px] lg:w-[360px] aspect-[16/10] md:aspect-[4/3] rounded-xs overflow-hidden border border-[#FAF7F0]/15 shadow-md shrink-0 relative group">
+                <img
+                  src={settings.eventImageUrl}
+                  alt={settings.eventTitle || "Event banner"}
+                  className="w-full h-full object-cover transition-transform duration-750 group-hover:scale-105"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors duration-500" />
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
 
       {/* Laundering & Care Notice Card Group */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6">

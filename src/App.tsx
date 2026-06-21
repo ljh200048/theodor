@@ -239,7 +239,7 @@ export default function App() {
           />
         );
       case "Notice":
-        return <NoticeView settings={settings} />;
+        return <NoticeView settings={settings} setActivePage={setActivePage} />;
       case "About":
         return <AboutView />;
       case "Login":
