@@ -95,102 +95,101 @@ export default function HomeView({
         </div>
       </section>
 
-      {/* EVENT SLOT BANNER */}
-      {settings?.isEventActive && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="relative overflow-hidden bg-[#2D4236] border border-[#2D4236]/20 p-8 sm:p-12 text-white rounded-xs shadow-xs"
-          >
-            {/* Elegant atmospheric background pattern */}
-            <div className="absolute inset-0 z-0 opacity-5 bg-[radial-gradient(#FAF7F0_1px,transparent_1px)] [background-size:20px_20px]" />
-            
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 sm:gap-10">
-              {/* Text Area */}
-              <div className="flex-1 space-y-6 text-left">
-                <div className="space-y-4">
-                  {settings.eventBadge && (
-                    <span className="inline-block bg-[#8C624E] text-[#FAF7F0] text-[9px] uppercase tracking-[0.25em] font-semibold px-3 py-1 font-mono rounded-xs">
-                      {settings.eventBadge}
-                    </span>
-                  )}
-                  <h3 className="text-2xl sm:text-3xl lg:text-4xl font-serif tracking-wide text-[#FAF7F0] leading-tight font-medium">
-                    {settings.eventTitle || "Special Archive Event"}
-                  </h3>
-                  {settings.eventText && (
-                    <p className="text-sm text-[#FAF7F0]/80 font-light leading-relaxed max-w-2xl whitespace-pre-line">
-                      {settings.eventText}
-                    </p>
-                  )}
-                </div>
-
-                <div className="pt-2">
-                  {settings.eventLink ? (
-                    <a
-                      href={settings.eventLink}
-                      target={settings.eventLink.startsWith("http") ? "_blank" : "_self"}
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-8 py-4 rounded-xs shadow-2xs"
-                    >
-                      <span>View Event</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </a>
-                  ) : (
-                    <button
-                      onClick={() => setActivePage("Shop")}
-                      className="inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-8 py-4 rounded-xs cursor-pointer shadow-2xs"
-                    >
-                      <span>Browse Products</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Event Image Area */}
-              {settings.eventImageUrl && (
-                <div className="w-full md:w-[320px] lg:w-[420px] shrink-0 aspect-[16/10] md:aspect-[4/3] rounded-xs overflow-hidden border border-[#FAF7F0]/15 shadow-md relative group">
-                  <img
-                    src={settings.eventImageUrl}
-                    alt={settings.eventTitle || "Event banner"}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors duration-500" />
-                </div>
-              )}
-            </div>
-          </motion.div>
-        </section>
-      )}
-
-      {/* 2. TODAY'S NOTICE CARD */}
+      {/* 2. TODAY'S NOTICE & EVENT CONTAINER */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="bg-[#FAF7F0] border border-[#8C624E]/10 p-6 sm:p-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 rounded-xs"
+          className="bg-[#FAF7F0] border border-[#8C624E]/10 p-6 sm:p-10 rounded-xs space-y-8 shadow-xs"
         >
-          <div className="space-y-2 max-w-3xl">
-            <span className="inline-flex items-center text-xs uppercase tracking-widest text-[#8C624E] font-medium font-mono">
-              <AlertCircle className="w-3.5 h-3.5 mr-1.5" />
-              TODAY'S NOTICE
-            </span>
-            <h3 className="text-lg sm:text-xl font-serif text-[#2C302E]">{title}</h3>
-            <p className="text-sm text-[#2C302E]/70 font-light leading-relaxed line-clamp-2 md:line-clamp-none">
-              {text}
-            </p>
+          {/* Today's Notice Section */}
+          <div className={`flex flex-col md:flex-row justify-between items-start md:items-center gap-6 ${settings?.isEventActive ? "pb-8 border-b border-[#8C624E]/10" : ""}`}>
+            <div className="space-y-2.5 max-w-4xl text-left">
+              <span className="inline-flex items-center text-xs uppercase tracking-widest text-[#8C624E] font-semibold font-mono">
+                <AlertCircle className="w-3.5 h-3.5 mr-1.5" />
+                TODAY'S NOTICE
+              </span>
+              <h3 className="text-lg sm:text-xl font-serif text-[#2C302E] leading-snug">{title}</h3>
+              <p className="text-sm text-[#2C302E]/70 font-light leading-relaxed">
+                {text}
+              </p>
+            </div>
+            <button
+              onClick={() => setActivePage("Notice")}
+              className="inline-flex items-center space-x-1.5 text-xs text-[#8C624E] uppercase tracking-widest border-b border-[#8C624E]/30 pb-0.5 hover:border-[#8C624E] font-semibold transition-all shrink-0 cursor-pointer"
+            >
+              <span>Read Full Notice</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <button
-            onClick={() => setActivePage("Notice")}
-            className="inline-flex items-center space-x-1.5 text-xs text-[#8C624E] uppercase tracking-widest border-b border-[#8C624E]/30 pb-0.5 hover:border-[#8C624E] font-semibold transition-all shrink-0 cursor-pointer"
-          >
-            <span>Read Full Notice</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+
+          {/* Active Event Slot (If Active is True) */}
+          {settings?.isEventActive && (
+            <div className="pt-2">
+              <div className="relative overflow-hidden bg-[#2D4236] text-white p-6 sm:p-8 rounded-xs flex flex-col md:flex-row justify-between items-stretch gap-6 md:gap-8 shadow-2xs">
+                {/* Elegant pattern */}
+                <div className="absolute inset-0 z-0 opacity-5 bg-[radial-gradient(#FAF7F0_1px,transparent_1px)] [background-size:16px_16px]" />
+                
+                <div className="relative z-10 flex-1 flex flex-col justify-between space-y-4 md:space-y-6">
+                  <div className="space-y-3 text-left">
+                    <div className="flex items-center space-x-2">
+                      <span className="inline-block bg-[#8C624E] text-[#FAF7F0] text-[9px] uppercase tracking-[0.2em] font-bold px-2.5 py-1 font-mono rounded-2xs">
+                        CURRENT EVENT
+                      </span>
+                      {settings.eventBadge && (
+                        <span className="inline-block bg-[#FAF7F0]/15 text-[#FAF7F0] text-[9px] uppercase tracking-[0.15em] font-light px-2.5 py-1 font-mono rounded-2xs">
+                          {settings.eventBadge}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-serif tracking-wide leading-tight font-medium">
+                      {settings.eventTitle || "Special Archive Event"}
+                    </h3>
+                    {settings.eventText && (
+                      <p className="text-xs sm:text-sm text-[#FAF7F0]/80 font-light leading-relaxed max-w-2xl whitespace-pre-line">
+                        {settings.eventText}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="pt-2 text-left">
+                    {settings.eventLink ? (
+                      <a
+                        href={settings.eventLink}
+                        target={settings.eventLink.startsWith("http") ? "_blank" : "_self"}
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-6 py-3 rounded-xs"
+                      >
+                        <span>View Event Details</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </a>
+                    ) : (
+                      <button
+                        onClick={() => setActivePage("Shop")}
+                        className="inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-6 py-3 rounded-xs cursor-pointer"
+                      >
+                        <span>Explore Event Items</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {settings.eventImageUrl && (
+                  <div className="relative z-10 w-full md:w-[260px] lg:w-[320px] aspect-[16/10] md:aspect-[4/3] rounded-xs overflow-hidden border border-[#FAF7F0]/15 shadow-md shrink-0 group">
+                    <img
+                      src={settings.eventImageUrl}
+                      alt={settings.eventTitle || "Event banner"}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors duration-500" />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </motion.div>
       </section>
 
