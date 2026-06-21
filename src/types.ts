@@ -36,6 +36,7 @@ export interface SiteSetting {
   eventLink?: string;
   eventBadge?: string;
   isEventActive?: boolean;
+  eventImageUrl?: string;
 }
 
 export interface Favorite {

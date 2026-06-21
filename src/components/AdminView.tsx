@@ -71,6 +71,7 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
   const [eventLink, setEventLink] = useState(settings?.eventLink || "");
   const [eventBadge, setEventBadge] = useState(settings?.eventBadge || "");
   const [isEventActive, setIsEventActive] = useState(settings?.isEventActive ?? false);
+  const [eventImageUrl, setEventImageUrl] = useState(settings?.eventImageUrl || "");
 
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
@@ -88,6 +89,7 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
       setEventLink(settings.eventLink || "");
       setEventBadge(settings.eventBadge || "");
       setIsEventActive(settings.isEventActive ?? false);
+      setEventImageUrl(settings.eventImageUrl || "");
     }
   }, [settings]);
 
@@ -270,7 +272,7 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
   };
 
   // Image Upload helper functions (Storage)
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: "hero" | "product" | "moodCards") => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: "hero" | "product" | "moodCards" | "event") => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -290,6 +292,8 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
         folder = "site/hero";
       } else if (field === "moodCards") {
         folder = "moodCards";
+      } else if (field === "event") {
+        folder = "site/event";
       }
       const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "")}`;
       const path = `${folder}/${fileName}`;
@@ -313,8 +317,27 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
           eventLink,
           eventBadge,
           isEventActive,
+          eventImageUrl,
         }, { merge: true });
         setUploadSuccess("메인 이미지가 변경되었습니다.");
+      } else if (field === "event") {
+        setEventImageUrl(url);
+        // Save to Firestore siteSettings/main IMMEDIATELY
+        const pathSettings = "siteSettings";
+        await setDoc(doc(db, pathSettings, "main"), {
+          eventImageUrl: url,
+          heroImageUrl: heroImg,
+          noticeTitle: noticeTitle || DEFAULT_SETTINGS.noticeTitle,
+          noticeText: noticeText || DEFAULT_SETTINGS.noticeText,
+          instagramUrl: instaUrl || DEFAULT_SETTINGS.instagramUrl,
+          contactUrl: contactUrl || DEFAULT_SETTINGS.contactUrl,
+          eventTitle,
+          eventText,
+          eventLink,
+          eventBadge,
+          isEventActive,
+        }, { merge: true });
+        setUploadSuccess("이벤트 이미지가 업로드 되었습니다.");
       } else if (field === "moodCards") {
         setMoodImageUrl(url);
         setUploadSuccess("무드 카드 이미지 업로드가 성공적으로 완료되었습니다!");
@@ -363,6 +386,7 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
         eventLink: eventLink.trim(),
         eventBadge: eventBadge.trim(),
         isEventActive,
+        eventImageUrl,
       }, { merge: true });
       setSettingsSuccess(true);
       setTimeout(() => setSettingsSuccess(false), 4000);
@@ -528,6 +552,7 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
         eventLink: DEFAULT_SETTINGS.eventLink || "",
         eventBadge: DEFAULT_SETTINGS.eventBadge || "",
         isEventActive: DEFAULT_SETTINGS.isEventActive ?? false,
+        eventImageUrl: DEFAULT_SETTINGS.eventImageUrl || "",
       });
       alert("사이트 세팅 기본 템플릿이 활성화되었습니다!");
       // reload
@@ -541,6 +566,7 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
       setEventLink(DEFAULT_SETTINGS.eventLink || "");
       setEventBadge(DEFAULT_SETTINGS.eventBadge || "");
       setIsEventActive(DEFAULT_SETTINGS.isEventActive ?? false);
+      setEventImageUrl(DEFAULT_SETTINGS.eventImageUrl || "");
     } catch (error) {
       console.error("Failed settings seeding:", error);
     }
@@ -929,6 +955,60 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
                   className="w-full bg-white border border-[#8C624E]/10 rounded-xs py-2.5 px-4 text-sm focus:outline-hidden focus:border-[#8C624E] resize-none"
                   placeholder="진행 중인 혜택이나 배송 특이사항 등 상세 이벤트 설명을 적어주세요."
                 />
+              </div>
+
+              {/* Event slot image field */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-widest text-[#2C302E]/60 font-semibold font-mono block">
+                  Event Banner Image (이벤트 대표 이미지)
+                </label>
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center bg-stone-50 p-3.5 border border-stone-200/50 rounded-xs">
+                  {eventImageUrl ? (
+                    <div className="w-32 h-20 bg-stone-100 hover:opacity-90 border border-stone-250 shadow-sm overflow-hidden shrink-0 relative group rounded-2xs">
+                      <img
+                        src={eventImageUrl}
+                        alt="Event Banner preview"
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEventImageUrl("")}
+                        className="absolute inset-0 bg-black/60 text-white text-[10px] uppercase tracking-widest font-bold opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-32 h-20 bg-stone-200/50 border border-dashed border-stone-400 rounded-2xs flex flex-col items-center justify-center text-stone-400 shrink-0 text-[10px] font-medium font-mono uppercase">
+                      <span>No Image</span>
+                      <span className="text-[8px] text-stone-400 font-light mt-1">이벤트 이미지 없음</span>
+                    </div>
+                  )}
+                  <div className="flex-1 space-y-2 w-full">
+                    <input
+                      type="text"
+                      value={eventImageUrl}
+                      onChange={(e) => setEventImageUrl(e.target.value)}
+                      className="w-full bg-white border border-[#8C624E]/15 rounded-xs py-2 px-3 text-xs focus:outline-hidden focus:border-[#8C624E] font-mono text-stone-700"
+                      placeholder="이미지 URL 직접 입력 (Optional)"
+                    />
+                    <div className="flex items-center space-x-2">
+                      <label className="bg-[#2D4236] hover:bg-[#8C624E] text-[#FAF7F0] text-[10px] font-bold px-3 py-1.5 transition-colors cursor-pointer tracking-widest rounded-xs uppercase line-clamp-1">
+                        <span>Upload Event Image</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleFileUpload(e, "event")}
+                          className="hidden"
+                        />
+                      </label>
+                      <span className="text-[10px] text-stone-400 font-light hidden sm:inline">
+                        16:9 가로가 넓은 배너형 이미지를 추천합니다.
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

@@ -102,47 +102,66 @@ export default function HomeView({
             initial={{ opacity: 0, scale: 0.98 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="relative overflow-hidden bg-stone-900 border border-stone-800 p-8 sm:p-12 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-8 rounded-xs"
+            className="relative overflow-hidden bg-[#2D4236] border border-[#2D4236]/20 p-8 sm:p-12 text-white rounded-xs shadow-xs"
           >
-            {/* Ambient pattern overlay */}
-            <div className="absolute inset-0 z-0 opacity-10 bg-[radial-gradient(#8C624E_1px,transparent_1px)] [background-size:16px_16px]" />
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[#8C624E]/10 rounded-full blur-3xl -mr-16 -mt-16 z-0" />
+            {/* Elegant atmospheric background pattern */}
+            <div className="absolute inset-0 z-0 opacity-5 bg-[radial-gradient(#FAF7F0_1px,transparent_1px)] [background-size:20px_20px]" />
             
-            <div className="space-y-4 max-w-3xl relative z-10 text-left">
-              {settings.eventBadge && (
-                <span className="inline-block bg-[#8C624E] text-[#FAF7F0] text-[9px] uppercase tracking-[0.2em] font-semibold px-3 py-1 font-mono rounded-xs">
-                  {settings.eventBadge}
-                </span>
-              )}
-              <h3 className="text-2xl sm:text-3xl font-serif tracking-wide text-white leading-tight font-medium">
-                {settings.eventTitle || "Special Archive Event"}
-              </h3>
-              {settings.eventText && (
-                <p className="text-sm text-stone-300 font-light leading-relaxed max-w-2xl whitespace-pre-line">
-                  {settings.eventText}
-                </p>
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 sm:gap-10">
+              {/* Text Area */}
+              <div className="flex-1 space-y-6 text-left">
+                <div className="space-y-4">
+                  {settings.eventBadge && (
+                    <span className="inline-block bg-[#8C624E] text-[#FAF7F0] text-[9px] uppercase tracking-[0.25em] font-semibold px-3 py-1 font-mono rounded-xs">
+                      {settings.eventBadge}
+                    </span>
+                  )}
+                  <h3 className="text-2xl sm:text-3xl lg:text-4xl font-serif tracking-wide text-[#FAF7F0] leading-tight font-medium">
+                    {settings.eventTitle || "Special Archive Event"}
+                  </h3>
+                  {settings.eventText && (
+                    <p className="text-sm text-[#FAF7F0]/80 font-light leading-relaxed max-w-2xl whitespace-pre-line">
+                      {settings.eventText}
+                    </p>
+                  )}
+                </div>
+
+                <div className="pt-2">
+                  {settings.eventLink ? (
+                    <a
+                      href={settings.eventLink}
+                      target={settings.eventLink.startsWith("http") ? "_blank" : "_self"}
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-8 py-4 rounded-xs shadow-2xs"
+                    >
+                      <span>View Event</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </a>
+                  ) : (
+                    <button
+                      onClick={() => setActivePage("Shop")}
+                      className="inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-8 py-4 rounded-xs cursor-pointer shadow-2xs"
+                    >
+                      <span>Browse Products</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Event Image Area */}
+              {settings.eventImageUrl && (
+                <div className="w-full md:w-[320px] lg:w-[420px] shrink-0 aspect-[16/10] md:aspect-[4/3] rounded-xs overflow-hidden border border-[#FAF7F0]/15 shadow-md relative group">
+                  <img
+                    src={settings.eventImageUrl}
+                    alt={settings.eventTitle || "Event banner"}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors duration-500" />
+                </div>
               )}
             </div>
-
-            {settings.eventLink ? (
-              <a
-                href={settings.eventLink}
-                target={settings.eventLink.startsWith("http") ? "_blank" : "_self"}
-                rel="noopener noreferrer"
-                className="relative z-10 inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-8 py-4 shrink-0 rounded-xs"
-              >
-                <span>View Event</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </a>
-            ) : (
-              <button
-                onClick={() => setActivePage("Shop")}
-                className="relative z-10 inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-8 py-4 shrink-0 rounded-xs cursor-pointer"
-              >
-                <span>Browse Products</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            )}
           </motion.div>
         </section>
       )}

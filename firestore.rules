@@ -79,7 +79,8 @@ service cloud.firestore {
         && (!('eventText' in data) || data.eventText is string)
         && (!('eventLink' in data) || data.eventLink is string)
         && (!('eventBadge' in data) || data.eventBadge is string)
-        && (!('isEventActive' in data) || data.isEventActive is bool);
+        && (!('isEventActive' in data) || data.isEventActive is bool)
+        && (!('eventImageUrl' in data) || data.eventImageUrl is string);
     }
 
     // Entity validator: Favorite

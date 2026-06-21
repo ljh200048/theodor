@@ -15,7 +15,8 @@ export const DEFAULT_SETTINGS: SiteSetting = {
   eventText: "오직 이번 주말 동안만 진행되는 헤비 아우터 특별 기획전. 바버 왁스 재킷 및 버버리 클래식 코트 기획전 상품들을 무료배송 선착순으로 감상해 보십시오.",
   eventLink: "",
   eventBadge: "RELEASE WEEK",
-  isEventActive: true
+  isEventActive: true,
+  eventImageUrl: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1200&q=80"
 };
 
 export const DEFAULT_PRODUCTS: Product[] = [
