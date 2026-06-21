@@ -128,10 +128,10 @@ export default function Footer({ settings, setActivePage }: FooterProps) {
             이용약관
           </button>
           <button 
-            onClick={() => openModal("refund")} 
+            onClick={() => setActivePage("DeliveryRefund")} 
             className="hover:text-[#FAF7F0] transition-colors cursor-pointer font-medium hover:underline text-[11px] sm:text-xs"
           >
-            환불/교환 정책
+            배송/환불 안내
           </button>
           <button 
             onClick={() => openModal("contact")} 

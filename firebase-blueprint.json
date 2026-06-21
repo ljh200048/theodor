@@ -236,6 +236,51 @@
         }
       },
       "required": ["userId", "userEmail", "productId", "productName", "productPrice", "productImageUrl", "recipientName", "recipientPhone", "shippingAddress", "size", "status", "createdAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Customer purchase feedback and review of items",
+      "type": "object",
+      "properties": {
+        "productId": {
+          "type": "string",
+          "description": "ID of the reviewed product"
+        },
+        "productName": {
+          "type": "string",
+          "description": "Name of the reviewed product"
+        },
+        "userId": {
+          "type": "string",
+          "description": "User UID who wrote the review"
+        },
+        "userName": {
+          "type": "string",
+          "description": "Writer display name or custom signature"
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "Writer email address"
+        },
+        "rating": {
+          "type": "number",
+          "description": "Star rating out of 5"
+        },
+        "comment": {
+          "type": "string",
+          "description": "Review detailed text content"
+        },
+        "images": {
+          "type": "array",
+          "description": "List of base64 encoded strings for photos (up to 3)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Submission timestamp"
+        }
+      },
+      "required": ["productId", "productName", "userId", "userName", "userEmail", "rating", "comment", "createdAt"]
     }
   },
   "firestore": {
@@ -262,6 +307,10 @@
     "/orders/{orderId}": {
       "schema": "Order",
       "description": "Completed purchase transactions of boutique garments"
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Customer reviews and photo attachments"
     }
   }
 }

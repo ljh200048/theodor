@@ -72,7 +72,8 @@ export type ActivePage =
   | "Admin"
   | "Cart"
   | "Privacy"
-  | "Terms";
+  | "Terms"
+  | "DeliveryRefund";
 
 export interface MoodCard {
   id: string;

@@ -13,7 +13,8 @@ import {
   User, 
   AlertTriangle,
   Clock,
-  ArrowRight
+  ArrowRight,
+  X
 } from "lucide-react";
 import { Product, ActivePage } from "../types";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
@@ -73,6 +74,7 @@ export default function CartView({
   const [paymentMethod, setPaymentMethod] = useState<"toss" | "bank">("toss");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [showBankTransferModal, setShowBankTransferModal] = useState(false);
 
   // Finalized summary for Step 4
   const [finalOrderDetails, setFinalOrderDetails] = useState<{
@@ -228,64 +230,87 @@ export default function CartView({
         });
 
       } else {
-        // Manual Bank Transfer Choice
-        // 1. Post to Firebase Firestore
-        for (const item of cartItems) {
-          const orderDocRef = doc(db, "orders", `${orderId}_${item.product.id}`);
-          await setDoc(orderDocRef, {
-            id: `${orderId}_${item.product.id}`,
-            userId: user?.uid || "guest",
-            userEmail: recipientEmail,
-            productId: item.product.id,
-            productName: item.product.name,
-            productPrice: item.product.price,
-            productImageUrl: item.product.imageUrl,
-            recipientName: recipientName.trim(),
-            recipientPhone: recipientPhone.trim(),
-            shippingAddress: addressStr,
-            size: item.selectedSize,
-            status: "pending", // Pending manual payment verification
-            createdAt: serverTimestamp(),
-          });
-        }
-
-        // 2. Trigger order confirmation emails
-        try {
-          await sendOrderEmails({
-            orderId: orderId,
-            productName: itemsSummary,
-            productPrice: totalAmount,
-            recipientName: recipientName.trim(),
-            recipientPhone: recipientPhone.trim(),
-            shippingAddress: addressStr,
-            size: cartItems.map(i => `${i.product.name}: ${i.selectedSize}`).join(", "),
-            buyerEmail: recipientEmail,
-          });
-        } catch (emailErr) {
-          console.error("Order confirmation email failed:", emailErr);
-        }
-
-        // Complete!
-        setFinalOrderDetails({
-          orderId,
-          items: [...cartItems],
-          shippingType: shippingTab,
-          address: addressStr,
-          recipient: recipientName,
-          totalAmount,
-          paymentType: "Direct Bank Transfer"
-        });
-
-        // Clear cart
-        localStorage.removeItem("theodor_cart");
-        setCartItems([]);
-        window.dispatchEvent(new Event("storage"));
-
-        setStep(4);
+        // Show bank transfer confirmation popup
+        setShowBankTransferModal(true);
+        setIsProcessingPayment(false);
       }
     } catch (err: any) {
       console.error("Checkout submission failed:", err);
       setPaymentError(err.message || "결제 연동이 시작되지 못했습니다. 임베디드 iframe 제한을 피하려면 [새 창에서 열기]를 사용해보시거나 무통장 이체 방식을 활용해 보세요.");
+      setIsProcessingPayment(false);
+    }
+  };
+
+  const executeBankTransferCheckout = async () => {
+    setIsProcessingPayment(true);
+    setPaymentError(null);
+    setShowBankTransferModal(false);
+
+    const orderId = "order_" + Date.now();
+    const addressStr = shippingTab === "domestic" 
+      ? `(국내 - 우편번호: ${zipCode}) ${domesticAddress} [배송메모: ${deliveryNote}]`
+      : `(해외 - ${country} / Postal Code: ${overseasZip}) ${overseasAddress} (통관부호: ${pcccCode}) [영문성명: ${englishName}] [배송메모: ${deliveryNote}]`;
+
+    const itemsSummary = cartItems.map(item => `${item.product.name} (${item.selectedSize}) x${item.quantity}`).join(", ");
+
+    try {
+      // Manual Bank Transfer Choice
+      // 1. Post to Firebase Firestore
+      for (const item of cartItems) {
+        const orderDocRef = doc(db, "orders", `${orderId}_${item.product.id}`);
+        await setDoc(orderDocRef, {
+          id: `${orderId}_${item.product.id}`,
+          userId: user?.uid || "guest",
+          userEmail: recipientEmail,
+          productId: item.product.id,
+          productName: item.product.name,
+          productPrice: item.product.price,
+          productImageUrl: item.product.imageUrl,
+          recipientName: recipientName.trim(),
+          recipientPhone: recipientPhone.trim(),
+          shippingAddress: addressStr,
+          size: item.selectedSize,
+          status: "pending", // Pending manual payment verification
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      // 2. Trigger order confirmation emails
+      try {
+        await sendOrderEmails({
+          orderId: orderId,
+          productName: itemsSummary,
+          productPrice: totalAmount,
+          recipientName: recipientName.trim(),
+          recipientPhone: recipientPhone.trim(),
+          shippingAddress: addressStr,
+          size: cartItems.map(i => `${i.product.name}: ${i.selectedSize}`).join(", "),
+          buyerEmail: recipientEmail,
+        });
+      } catch (emailErr) {
+        console.error("Order confirmation email failed:", emailErr);
+      }
+
+      // Complete!
+      setFinalOrderDetails({
+        orderId,
+        items: [...cartItems],
+        shippingType: shippingTab,
+        address: addressStr,
+        recipient: recipientName,
+        totalAmount,
+        paymentType: "Direct Bank Transfer"
+      });
+
+      // Clear cart
+      localStorage.removeItem("theodor_cart");
+      setCartItems([]);
+      window.dispatchEvent(new Event("storage"));
+
+      setStep(4);
+    } catch (err: any) {
+      console.error("Manual Transfer checkout failed:", err);
+      setPaymentError(err.message || "주문 등록 중 오류가 발생했습니다.");
     } finally {
       setIsProcessingPayment(false);
     }
@@ -964,8 +989,8 @@ export default function CartView({
                       <span>무통장 계좌 안내</span>
                     </div>
                     <div className="pl-5 space-y-1 font-sans text-stone-600">
-                      <div>우리은행 <strong>1002-349-801267</strong> (예금주: 신종민 / 테오도르)</div>
-                      <div>주문 완료 시 24시간 내 미입금 시 자동 주문 취소 대상이 됩니다.</div>
+                      <div>카카오뱅크 <strong>3333365056455</strong> (예금주: 신종민)</div>
+                      <div className="text-[11px] text-[#8C624E] font-medium">주문 후 3영업일 이내 입금해주세요. 입금 확인 후 배송이 시작됩니다.</div>
                     </div>
                   </div>
                 )}
@@ -1105,6 +1130,75 @@ export default function CartView({
             >
               Go to My Orders (주문 보러가기)
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bank Transfer Guide Popup/Modal */}
+      {showBankTransferModal && (
+        <div className="fixed inset-0 bg-[#2C302E]/75 backdrop-blur-xs flex items-center justify-center z-[1000] p-4 animate-fade-in">
+          <div className="bg-[#FDFBF7] border border-[#8C624E]/15 rounded-sm max-w-md w-full shadow-2xl relative p-6 space-y-6 animate-scale-up">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[#FAF7F0]/80 pb-3">
+              <div className="flex items-center space-x-2 text-[#8C624E]">
+                <Clock className="w-5 h-5" />
+                <h3 className="font-serif font-bold text-sm uppercase tracking-wider text-[#2C302E]">
+                  입금 안내 (Bank Transfer Guide)
+                </h3>
+              </div>
+              <button 
+                onClick={() => setShowBankTransferModal(false)}
+                className="text-stone-400 hover:text-stone-700 p-1 rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Info contents */}
+            <div className="space-y-4 text-xs sm:text-sm text-stone-600 font-sans leading-relaxed">
+              <p className="text-[11px] text-stone-500 italic">
+                아래 계좌 정보로 입금해 주시면, 확인 즉시 아카이브 배송 포장 절차가 개시됩니다.
+              </p>
+
+              <div className="bg-[#FAF7F0] p-4 border border-[#8C624E]/10 rounded-xs space-y-3 font-mono">
+                <div className="flex justify-between items-center py-1 border-b border-dashed border-stone-200">
+                  <span className="text-stone-400 text-xs">은행명</span>
+                  <span className="text-stone-800 font-bold font-sans">카카오뱅크</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-dashed border-stone-200">
+                  <span className="text-stone-400 text-xs">계좌번호</span>
+                  <span className="text-stone-800 font-bold select-all tracking-wider text-sm">3333365056455</span>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-stone-400 text-xs">예금주</span>
+                  <span className="text-stone-800 font-bold font-sans">신종민</span>
+                </div>
+              </div>
+
+              <div className="bg-[#8C624E]/5 border border-[#8C624E]/15 p-3.5 rounded-xs">
+                <p className="text-xs text-[#8C624E] leading-normal font-medium text-center font-sans">
+                  "주문 후 3영업일 이내 입금해주세요. 입금 확인 후 배송이 시작됩니다."
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex space-x-3 pt-2 border-t border-[#FAF7F0]/80">
+              <button
+                type="button"
+                onClick={() => setShowBankTransferModal(false)}
+                className="flex-1 border border-stone-200 hover:bg-stone-50 text-stone-600 text-xs font-semibold py-2.5 rounded-xs cursor-pointer transition-colors text-center"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={executeBankTransferCheckout}
+                className="flex-1 bg-[#2C302E] hover:bg-[#8C624E] text-[#FAF7F0] text-xs font-semibold py-2.5 rounded-xs cursor-pointer transition-colors text-center shadow-md"
+              >
+                확인 및 주문 완료
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -30,6 +30,7 @@ import ConsentModal from "./components/ConsentModal";
 import CartView from "./components/CartView";
 import PrivacyView from "./components/PrivacyView";
 import TermsView from "./components/TermsView";
+import DeliveryRefundView from "./components/DeliveryRefundView";
 import { DEFAULT_PRODUCTS, DEFAULT_SETTINGS, DEFAULT_MOOD_CARDS } from "./mockData";
 
 export const ADMIN_EMAILS = ["jongminsin81@gmail.com", "lch200048@gmail.com"];
@@ -396,6 +397,8 @@ export default function App() {
         return <PrivacyView />;
       case "Terms":
         return <TermsView />;
+      case "DeliveryRefund":
+        return <DeliveryRefundView />;
       default:
         return (
           <HomeView
