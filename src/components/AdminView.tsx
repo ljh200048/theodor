@@ -38,7 +38,7 @@ interface AdminViewProps {
 
 type AdminTab = "settings" | "products" | "inquiries" | "moodCards";
 
-export const ADMIN_EMAIL = "lch200048@gmail.com";
+export const ADMIN_EMAIL = "jongminsin81@gmail.com";
 export const IMG_PLACEHOLDER = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&q=80";
 
 export default function AdminView({ products, settings, moodCards, user }: AdminViewProps) {
@@ -64,6 +64,14 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
   const [noticeText, setNoticeText] = useState(settings?.noticeText || "");
   const [instaUrl, setInstaUrl] = useState(settings?.instagramUrl || "");
   const [contactUrl, setContactUrl] = useState(settings?.contactUrl || "");
+  
+  // Event Slot state variables
+  const [eventTitle, setEventTitle] = useState(settings?.eventTitle || "");
+  const [eventText, setEventText] = useState(settings?.eventText || "");
+  const [eventLink, setEventLink] = useState(settings?.eventLink || "");
+  const [eventBadge, setEventBadge] = useState(settings?.eventBadge || "");
+  const [isEventActive, setIsEventActive] = useState(settings?.isEventActive ?? false);
+
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
 
@@ -75,6 +83,11 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
       setNoticeText(settings.noticeText || "");
       setInstaUrl(settings.instagramUrl || "");
       setContactUrl(settings.contactUrl || "");
+      setEventTitle(settings.eventTitle || "");
+      setEventText(settings.eventText || "");
+      setEventLink(settings.eventLink || "");
+      setEventBadge(settings.eventBadge || "");
+      setIsEventActive(settings.isEventActive ?? false);
     }
   }, [settings]);
 
@@ -89,6 +102,70 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
   const [imageUrl, setImageUrl] = useState("");
   const [isSoldOut, setIsSoldOut] = useState(false);
   const [isRecommended, setIsRecommended] = useState(false);
+
+  // New detailed product states
+  const [detailDescription, setDetailDescription] = useState("");
+  const [measurements, setMeasurements] = useState("");
+  const [material, setMaterial] = useState("");
+  const [shippingInfo, setShippingInfo] = useState("");
+  const [notice, setNotice] = useState("");
+  const [detailImageUrls, setDetailImageUrls] = useState<string[]>([]);
+  const [tempProductId, setTempProductId] = useState<string>("");
+  const [uploadingDetailFiles, setUploadingDetailFiles] = useState(false);
+
+  useEffect(() => {
+    if (!editingProduct && !tempProductId) {
+      setTempProductId(`product_${Date.now()}`);
+    }
+  }, [editingProduct, tempProductId]);
+
+  const getActiveProductId = () => {
+    if (editingProduct) return editingProduct.id;
+    if (!tempProductId) {
+      const newId = `product_${Date.now()}`;
+      setTempProductId(newId);
+      return newId;
+    }
+    return tempProductId;
+  };
+
+  const handleDetailImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (!isAdmin) {
+      setUploadError("관리자만 이미지를 업로드할 수 있습니다.");
+      return;
+    }
+
+    setUploadingDetailFiles(true);
+    setUploadError("");
+    setUploadSuccess("");
+
+    const activeProdId = getActiveProductId();
+    const uploadedUrls: string[] = [];
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileName = `${Date.now()}_${i}_${file.name.replace(/[^a-zA-Z0-9.]/g, "")}`;
+        const path = `products/detail/${activeProdId}/${fileName}`;
+        const storageRef = sRef(storage, path);
+
+        await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(storageRef);
+        uploadedUrls.push(url);
+      }
+
+      setDetailImageUrls((prev) => [...prev, ...uploadedUrls]);
+      setUploadSuccess(`${files.length}개의 상세 이미지가 성공적으로 업로드되었습니다!`);
+    } catch (err: any) {
+      console.error("Detail Storage upload failed:", err);
+      setUploadError("상세 이미지 업로드에 실패했습니다. Storage 권한 혹은 규칙을 점검해 주세요.");
+    } finally {
+      setUploadingDetailFiles(false);
+    }
+  };
 
   // Upload progress simulation or state
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -159,6 +236,12 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
     setImageUrl(prod.imageUrl);
     setIsSoldOut(prod.isSoldOut);
     setIsRecommended(prod.isRecommended);
+    setDetailDescription((prod as any).detailDescription || "");
+    setMeasurements((prod as any).measurements || "");
+    setMaterial((prod as any).material || "");
+    setShippingInfo((prod as any).shippingInfo || "");
+    setNotice((prod as any).notice || "");
+    setDetailImageUrls((prod as any).detailImageUrls || []);
     setFormErr("");
     setFormSuccess("");
     window.scrollTo({ top: 300, behavior: "smooth" });
@@ -175,6 +258,13 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
     setImageUrl("");
     setIsSoldOut(false);
     setIsRecommended(false);
+    setDetailDescription("");
+    setMeasurements("");
+    setMaterial("");
+    setShippingInfo("");
+    setNotice("");
+    setDetailImageUrls([]);
+    setTempProductId("");
     setFormErr("");
     setFormSuccess("");
   };
@@ -218,7 +308,12 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
           noticeText: noticeText || DEFAULT_SETTINGS.noticeText,
           instagramUrl: instaUrl || DEFAULT_SETTINGS.instagramUrl,
           contactUrl: contactUrl || DEFAULT_SETTINGS.contactUrl,
-        });
+          eventTitle,
+          eventText,
+          eventLink,
+          eventBadge,
+          isEventActive,
+        }, { merge: true });
         setUploadSuccess("메인 이미지가 변경되었습니다.");
       } else if (field === "moodCards") {
         setMoodImageUrl(url);
@@ -263,7 +358,12 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
         noticeText,
         instagramUrl: instaUrl,
         contactUrl,
-      });
+        eventTitle: eventTitle.trim(),
+        eventText: eventText.trim(),
+        eventLink: eventLink.trim(),
+        eventBadge: eventBadge.trim(),
+        isEventActive,
+      }, { merge: true });
       setSettingsSuccess(true);
       setTimeout(() => setSettingsSuccess(false), 4000);
     } catch (error) {
@@ -288,25 +388,8 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
 
     try {
       if (editingProduct) {
-        // UPDATE existing product
+        // UPDATE existing product using setDoc with { merge: true }
         const prodRef = doc(db, path, editingProduct.id);
-        await updateDoc(prodRef, {
-          name: name.trim(),
-          price: Number(price),
-          category,
-          size: size.trim(),
-          condition,
-          description: description.trim(),
-          imageUrl: imageUrl.trim(),
-          isSoldOut,
-          isRecommended,
-        });
-        setFormSuccess("상품 정보가 성공적으로 업데이트되었습니다!");
-        cancelEdit();
-      } else {
-        // ADD new product with unique sequential ID
-        const newId = `product_${Date.now()}`;
-        const prodRef = doc(db, path, newId);
         await setDoc(prodRef, {
           name: name.trim(),
           price: Number(price),
@@ -317,6 +400,35 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
           imageUrl: imageUrl.trim(),
           isSoldOut,
           isRecommended,
+          detailDescription: detailDescription.trim(),
+          measurements: measurements.trim(),
+          material: material.trim(),
+          shippingInfo: shippingInfo.trim(),
+          notice: notice.trim(),
+          detailImageUrls,
+        }, { merge: true });
+        setFormSuccess("상품 정보가 성공적으로 업데이트되었습니다!");
+        cancelEdit();
+      } else {
+        // ADD new product with unique ID
+        const activeId = getActiveProductId();
+        const prodRef = doc(db, path, activeId);
+        await setDoc(prodRef, {
+          name: name.trim(),
+          price: Number(price),
+          category,
+          size: size.trim(),
+          condition,
+          description: description.trim(),
+          imageUrl: imageUrl.trim(),
+          isSoldOut,
+          isRecommended,
+          detailDescription: detailDescription.trim(),
+          measurements: measurements.trim(),
+          material: material.trim(),
+          shippingInfo: shippingInfo.trim(),
+          notice: notice.trim(),
+          detailImageUrls,
           createdAt: serverTimestamp(),
         });
         setFormSuccess("새로운 상품이 드롭 카탈로그에 등록되었습니다!");
@@ -328,6 +440,13 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
         setImageUrl("");
         setIsSoldOut(false);
         setIsRecommended(false);
+        setDetailDescription("");
+        setMeasurements("");
+        setMaterial("");
+        setShippingInfo("");
+        setNotice("");
+        setDetailImageUrls([]);
+        setTempProductId("");
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
@@ -404,6 +523,11 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
         noticeText: DEFAULT_SETTINGS.noticeText,
         instagramUrl: DEFAULT_SETTINGS.instagramUrl,
         contactUrl: DEFAULT_SETTINGS.contactUrl,
+        eventTitle: DEFAULT_SETTINGS.eventTitle || "",
+        eventText: DEFAULT_SETTINGS.eventText || "",
+        eventLink: DEFAULT_SETTINGS.eventLink || "",
+        eventBadge: DEFAULT_SETTINGS.eventBadge || "",
+        isEventActive: DEFAULT_SETTINGS.isEventActive ?? false,
       });
       alert("사이트 세팅 기본 템플릿이 활성화되었습니다!");
       // reload
@@ -412,6 +536,11 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
       setNoticeText(DEFAULT_SETTINGS.noticeText);
       setInstaUrl(DEFAULT_SETTINGS.instagramUrl);
       setContactUrl(DEFAULT_SETTINGS.contactUrl);
+      setEventTitle(DEFAULT_SETTINGS.eventTitle || "");
+      setEventText(DEFAULT_SETTINGS.eventText || "");
+      setEventLink(DEFAULT_SETTINGS.eventLink || "");
+      setEventBadge(DEFAULT_SETTINGS.eventBadge || "");
+      setIsEventActive(DEFAULT_SETTINGS.isEventActive ?? false);
     } catch (error) {
       console.error("Failed settings seeding:", error);
     }
@@ -720,7 +849,85 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
                   value={contactUrl}
                   onChange={(e) => setContactUrl(e.target.value)}
                   className="w-full bg-white border border-[#8C624E]/10 rounded-xs py-2.5 px-4 text-sm focus:outline-hidden focus:border-[#8C624E] font-mono text-xs"
-                  placeholder="mailto:lch200048@gmail.com"
+                  placeholder="mailto:jongminsin81@gmail.com"
+                />
+              </div>
+            </div>
+
+            {/* Event Slot Configuration */}
+            <div className="border-t border-[#8C624E]/10 pt-6 mt-4 space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#8C624E] font-mono">
+                Event Slot Setting (이벤트 슬롯 설정)
+              </h4>
+              
+              <div className="flex items-center space-x-2.5 bg-stone-50 p-4 border border-stone-200/50 rounded-xs">
+                <input
+                  type="checkbox"
+                  id="isEventActive"
+                  checked={isEventActive}
+                  onChange={(e) => setIsEventActive(e.target.checked)}
+                  className="w-4 h-4 text-[#8C624E] focus:ring-[#8C624E] border-[#8C624E]/20 rounded-xs"
+                />
+                <label htmlFor="isEventActive" className="text-xs font-semibold text-[#2C302E] tracking-wide select-none cursor-pointer">
+                  Activate Event Slot Banner on Main Screen (메인 화면에 이벤트 슬롯 노출)
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Event Badge */}
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-widest text-[#2C302E]/60 font-semibold font-mono block">
+                    Event Badge (배지 라벨)
+                  </label>
+                  <input
+                    type="text"
+                    value={eventBadge}
+                    onChange={(e) => setEventBadge(e.target.value)}
+                    className="w-full bg-white border border-[#8C624E]/10 rounded-xs py-2.5 px-4 text-sm focus:outline-hidden focus:border-[#8C624E]"
+                    placeholder="e.g. EVENT, SEASON OFF, SPECIAL GIFT"
+                  />
+                </div>
+
+                {/* Event Link */}
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-widest text-[#2C302E]/60 font-semibold font-mono block">
+                    Event Target Link URL (이벤트 클릭 시 연결 링크)
+                  </label>
+                  <input
+                    type="text"
+                    value={eventLink}
+                    onChange={(e) => setEventLink(e.target.value)}
+                    className="w-full bg-white border border-[#8C624E]/10 rounded-xs py-2.5 px-4 text-sm focus:outline-hidden focus:border-[#8C624E] font-mono text-xs"
+                    placeholder="이벤트 클릭 시 연결될 URL (Optional)"
+                  />
+                </div>
+              </div>
+
+              {/* Event Title */}
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-widest text-[#2C302E]/60 font-semibold font-mono block">
+                  Event Slot Headline (이벤트 타이틀 대제목)
+                </label>
+                <input
+                  type="text"
+                  value={eventTitle}
+                  onChange={(e) => setEventTitle(e.target.value)}
+                  className="w-full bg-white border border-[#8C624E]/10 rounded-xs py-2.5 px-4 text-sm focus:outline-hidden focus:border-[#8C624E]"
+                  placeholder="e.g. 릴리즈 기념 전 품목 10% 추가 릴리즈 위크 돌입!"
+                />
+              </div>
+
+              {/* Event Text */}
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-widest text-[#2C302E]/60 font-semibold font-mono block">
+                  Event Subtext / Promo Detail (이벤트 부제목 및 설명글)
+                </label>
+                <textarea
+                  rows={2}
+                  value={eventText}
+                  onChange={(e) => setEventText(e.target.value)}
+                  className="w-full bg-white border border-[#8C624E]/10 rounded-xs py-2.5 px-4 text-sm focus:outline-hidden focus:border-[#8C624E] resize-none"
+                  placeholder="진행 중인 혜택이나 배송 특이사항 등 상세 이벤트 설명을 적어주세요."
                 />
               </div>
             </div>
@@ -921,6 +1128,125 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
                   />
                   <span>Recommend Topic (추천 상품)</span>
                 </label>
+              </div>
+            </div>
+
+            {/* 추가 디테일 필드 */}
+            <div className="md:col-span-3 border-t border-[#8C624E]/10 pt-6 mt-4 space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#8C624E] font-mono">
+                상세 페이지 추가 정보 (Optional)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-widest text-[#2C302E]/60 font-semibold font-mono block">
+                    상세 설명 (detailDescription)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={detailDescription}
+                    onChange={(e) => setDetailDescription(e.target.value)}
+                    className="w-full bg-white border border-[#8C624E]/10 rounded-xs py-2 px-3 text-sm focus:outline-hidden"
+                    placeholder="제품의 세부 소재감, 디테일, 핏 등 상세 설명을 입력해 주세요."
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-widest text-[#2C302E]/60 font-semibold font-mono block">
+                    실측 사이즈 (measurements)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={measurements}
+                    onChange={(e) => setMeasurements(e.target.value)}
+                    className="w-full bg-white border border-[#8C624E]/10 rounded-xs py-2 px-3 text-sm focus:outline-hidden"
+                    placeholder="어깨, 가슴, 소매, 총장 등 구체적인 실측 사이즈를 입력해 주세요."
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-widest text-[#2C302E]/60 font-semibold font-mono block">
+                    소재 (material)
+                  </label>
+                  <input
+                    type="text"
+                    value={material}
+                    onChange={(e) => setMaterial(e.target.value)}
+                    className="w-full bg-white border border-[#8C624E]/10 rounded-xs py-2 px-3 text-sm focus:outline-hidden"
+                    placeholder="울 100%, 면 100% 등"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-widest text-[#2C302E]/60 font-semibold font-mono block">
+                    배송 안내 (shippingInfo)
+                  </label>
+                  <input
+                    type="text"
+                    value={shippingInfo}
+                    onChange={(e) => setShippingInfo(e.target.value)}
+                    className="w-full bg-white border border-[#8C624E]/10 rounded-xs py-2 px-3 text-sm focus:outline-hidden"
+                    placeholder="기본값: 전국 무료 배송 (우체국택배)"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase tracking-widest text-[#2C302E]/60 font-semibold font-mono block">
+                    구매 전 안내 (notice)
+                  </label>
+                  <input
+                    type="text"
+                    value={notice}
+                    onChange={(e) => setNotice(e.target.value)}
+                    className="w-full bg-white border border-[#8C624E]/10 rounded-xs py-2 px-3 text-sm focus:outline-hidden"
+                    placeholder="교환/환불 불가 안내 등"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-widest text-[#2C302E]/60 font-semibold font-mono block">
+                  상세 이미지 여러 장 (Firebase Storage 업로드)
+                </label>
+                <div className="border border-dashed border-[#8C624E]/15 bg-white p-4 rounded-xs min-h-24 flex flex-col justify-center items-center text-center relative group">
+                  {uploadingDetailFiles ? (
+                    <div className="flex items-center space-x-2 text-stone-500 text-xs">
+                      <RefreshCw className="w-4 h-4 animate-spin text-[#8C624E]" />
+                      <span>상세 이미지를 Firebase Storage에 업로드 중...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <UploadCloud className="w-8 h-8 text-stone-300 group-hover:text-[#8C624E] transition-colors mb-2" />
+                      <span className="text-xs text-stone-500 font-light font-sans">여러 이미지 선택하기 (클릭하여 업로드)</span>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleDetailImagesUpload}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                    </>
+                  )}
+                </div>
+                {detailImageUrls.length > 0 && (
+                  <div className="pt-2">
+                    <p className="text-[10px] uppercase tracking-widest text-[#2C302E]/40 font-semibold font-mono mb-2">
+                      업로드된 상세 이미지 ({detailImageUrls.length})
+                    </p>
+                    <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
+                      {detailImageUrls.map((url, idx) => (
+                        <div key={idx} className="relative aspect-square border border-stone-200 group/img">
+                          <img src={url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          <button
+                            type="button"
+                            onClick={() => setDetailImageUrls(prev => prev.filter((_, i) => i !== idx))}
+                            className="absolute top-1 right-1 bg-black/60 hover:bg-black text-white rounded-full p-0.5 opacity-0 group-hover/img:opacity-100 transition-opacity"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

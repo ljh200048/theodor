@@ -10,7 +10,12 @@ export const DEFAULT_SETTINGS: SiteSetting = {
   noticeTitle: "theodor_vintage 릴리즈 및 배송 안내",
   noticeText: "모든 패브릭 빈티지 상품은 정밀 세탁 및 고온 스팀 살균 처리가 완료된 후 정성스레 배송됩니다. 수량이 오직 하나뿐인 빈티지 편집 특성상, 장바구니에 담아두시더라도 결제 완료 선착순으로 완판되오니 이 점 유의 부탁드립니다. 신규 회원 가입 후 입금 시 무료 배송 혜택을 드립니다.",
   instagramUrl: "https://instagram.com/theodor_vintage",
-  contactUrl: "mailto:lch200048@gmail.com"
+  contactUrl: "mailto:jongminsin81@gmail.com",
+  eventTitle: "Archived Heavy Outer 10% Drop Week",
+  eventText: "오직 이번 주말 동안만 진행되는 헤비 아우터 특별 기획전. 바버 왁스 재킷 및 버버리 클래식 코트 기획전 상품들을 무료배송 선착순으로 감상해 보십시오.",
+  eventLink: "",
+  eventBadge: "RELEASE WEEK",
+  isEventActive: true
 };
 
 export const DEFAULT_PRODUCTS: Product[] = [

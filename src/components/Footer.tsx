@@ -14,7 +14,7 @@ interface FooterProps {
 
 export default function Footer({ settings, setActivePage }: FooterProps) {
   const instagram = settings?.instagramUrl || "https://instagram.com/theodor_vintage";
-  const contact = settings?.contactUrl || "mailto:lch200048@gmail.com";
+  const contact = settings?.contactUrl || "mailto:jongminsin81@gmail.com";
 
   return (
     <footer className="bg-[#2C302E] text-[#FAF7F0] border-t border-[#1C1F1D] py-16 px-4 sm:px-6 lg:px-8 mt-auto">

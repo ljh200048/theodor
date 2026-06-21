@@ -27,7 +27,7 @@ export default function HomeView({
   const title = settings?.noticeTitle || "theodor_vintage 가을 시즌 안내";
   const text = settings?.noticeText || "새로 드롭된 가을 아카이브 아이팀들을 지금 컬렉션 숍에서 감상하실 수 있습니다.";
   const instagram = settings?.instagramUrl || "https://instagram.com/theodor_vintage";
-  const contact = settings?.contactUrl || "mailto:lch200048@gmail.com";
+  const contact = settings?.contactUrl || "mailto:jongminsin81@gmail.com";
 
   // New Drop: Last 3 sorted by creation
   const newDrops = [...products]
@@ -94,6 +94,58 @@ export default function HomeView({
           </motion.div>
         </div>
       </section>
+
+      {/* EVENT SLOT BANNER */}
+      {settings?.isEventActive && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="relative overflow-hidden bg-stone-900 border border-stone-800 p-8 sm:p-12 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-8 rounded-xs"
+          >
+            {/* Ambient pattern overlay */}
+            <div className="absolute inset-0 z-0 opacity-10 bg-[radial-gradient(#8C624E_1px,transparent_1px)] [background-size:16px_16px]" />
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[#8C624E]/10 rounded-full blur-3xl -mr-16 -mt-16 z-0" />
+            
+            <div className="space-y-4 max-w-3xl relative z-10 text-left">
+              {settings.eventBadge && (
+                <span className="inline-block bg-[#8C624E] text-[#FAF7F0] text-[9px] uppercase tracking-[0.2em] font-semibold px-3 py-1 font-mono rounded-xs">
+                  {settings.eventBadge}
+                </span>
+              )}
+              <h3 className="text-2xl sm:text-3xl font-serif tracking-wide text-white leading-tight font-medium">
+                {settings.eventTitle || "Special Archive Event"}
+              </h3>
+              {settings.eventText && (
+                <p className="text-sm text-stone-300 font-light leading-relaxed max-w-2xl whitespace-pre-line">
+                  {settings.eventText}
+                </p>
+              )}
+            </div>
+
+            {settings.eventLink ? (
+              <a
+                href={settings.eventLink}
+                target={settings.eventLink.startsWith("http") ? "_blank" : "_self"}
+                rel="noopener noreferrer"
+                className="relative z-10 inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-8 py-4 shrink-0 rounded-xs"
+              >
+                <span>View Event</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </a>
+            ) : (
+              <button
+                onClick={() => setActivePage("Shop")}
+                className="relative z-10 inline-flex items-center space-x-2 bg-[#FAF7F0] hover:bg-[#8C624E] text-[#2C302E] hover:text-white transition-all text-xs font-semibold uppercase tracking-widest px-8 py-4 shrink-0 rounded-xs cursor-pointer"
+              >
+                <span>Browse Products</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </motion.div>
+        </section>
+      )}
 
       {/* 2. TODAY'S NOTICE CARD */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -6,7 +6,7 @@ This document outlines the data invariants, threat vectors (the Dirty Dozen payl
 
 1. **Product Collection (`products`)**
    - Products are read-only to public guests.
-   - Creating, updating, or deleting a product is restricted to the Verified Store Admin (`lch200048@gmail.com`).
+   - Creating, updating, or deleting a product is restricted to the Verified Store Admin (`jongminsin81@gmail.com`).
    - Sizing must be standard textual formats. Pricing must be non-negative integers.
    - Creation requires `createdAt` to be the current server timestamp.
 
@@ -39,11 +39,11 @@ Below is an enumeration of 12 adversarial payload requests that would break the 
      ```json
      { "name": "Fake Rolex", "price": 1000000, "category": "Accessories", "size": "N/A", "condition": "New", "imageUrl": "hack.png", "isSoldOut": false, "isRecommended": true }
      ```
-   - **Result**: `PERMISSION_DENIED` (Guest not authenticated or not registered as the admin email `lch200048@gmail.com`).
+   - **Result**: `PERMISSION_DENIED` (Guest not authenticated or not registered as the admin email `jongminsin81@gmail.com`).
 
 2. **Falsified Client Email Profile Spoofing**
    - **Payload**: Standard user attempts to overwrite another user profile or claim admin role by submitting an authenticated email claim bypassing verification check.
-   - **Result**: `PERMISSION_DENIED` (Admin check requires `request.auth.token.email_verified == true && request.auth.token.email == "lch200048@gmail.com"`).
+   - **Result**: `PERMISSION_DENIED` (Admin check requires `request.auth.token.email_verified == true && request.auth.token.email == "jongminsin81@gmail.com"`).
 
 3. **Shadow Update to Settings**
    - **Payload**: Standard member attempts to overwrite banner content or modify Instagram URL in `/siteSettings/main`.

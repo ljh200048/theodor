@@ -17,6 +17,12 @@ export interface Product {
   isSoldOut: boolean;
   isRecommended: boolean;
   createdAt: Timestamp | Date;
+  detailDescription?: string;
+  measurements?: string;
+  material?: string;
+  shippingInfo?: string;
+  notice?: string;
+  detailImageUrls?: string[];
 }
 
 export interface SiteSetting {
@@ -25,6 +31,11 @@ export interface SiteSetting {
   noticeText: string;
   instagramUrl: string;
   contactUrl: string;
+  eventTitle?: string;
+  eventText?: string;
+  eventLink?: string;
+  eventBadge?: string;
+  isEventActive?: boolean;
 }
 
 export interface Favorite {

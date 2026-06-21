@@ -17,7 +17,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email == "lch200048@gmail.com";
+      return isSignedIn() && request.auth.token.email == "jongminsin81@gmail.com";
     }
 
     function isValidId(id) {
@@ -54,6 +54,12 @@ service cloud.firestore {
         && data.imageUrl.size() <= 2000 
         && data.isSoldOut is bool 
         && data.isRecommended is bool 
+        && (!('detailDescription' in data) || data.detailDescription is string)
+        && (!('measurements' in data) || data.measurements is string)
+        && (!('material' in data) || data.material is string)
+        && (!('shippingInfo' in data) || data.shippingInfo is string)
+        && (!('notice' in data) || data.notice is string)
+        && (!('detailImageUrls' in data) || data.detailImageUrls is list)
         && data.createdAt is timestamp;
     }
 
@@ -68,7 +74,12 @@ service cloud.firestore {
         && data.instagramUrl is string 
         && data.instagramUrl.size() <= 2000 
         && data.contactUrl is string 
-        && data.contactUrl.size() <= 2000;
+        && data.contactUrl.size() <= 2000
+        && (!('eventTitle' in data) || data.eventTitle is string)
+        && (!('eventText' in data) || data.eventText is string)
+        && (!('eventLink' in data) || data.eventLink is string)
+        && (!('eventBadge' in data) || data.eventBadge is string)
+        && (!('isEventActive' in data) || data.isEventActive is bool);
     }
 
     // Entity validator: Favorite

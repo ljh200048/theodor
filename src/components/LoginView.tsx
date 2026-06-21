@@ -13,9 +13,11 @@ import { ActivePage } from "../types";
 interface LoginProps {
   setActivePage: (p: ActivePage) => void;
   onLoginSuccess: () => void;
+  initialNotice?: string | null;
+  onClearNotice?: () => void;
 }
 
-export default function LoginView({ setActivePage, onLoginSuccess }: LoginProps) {
+export default function LoginView({ setActivePage, onLoginSuccess, initialNotice, onClearNotice }: LoginProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,7 +26,12 @@ export default function LoginView({ setActivePage, onLoginSuccess }: LoginProps)
   React.useEffect(() => {
     console.log("Connected Firebase Project ID:", auth.app?.options?.projectId);
     console.log("Connected Firebase Auth Domain:", auth.app?.options?.authDomain);
-  }, []);
+    
+    // Auto clear notifications after mounting if needed
+    return () => {
+      if (onClearNotice) onClearNotice();
+    };
+  }, [onClearNotice]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,8 +53,6 @@ export default function LoginView({ setActivePage, onLoginSuccess }: LoginProps)
     } catch (error: any) {
       console.error("Login Error Code:", error?.code);
       console.error("Login Error Message:", error?.message);
-      
-      alert(`로그인 실패 - 오류 코드: ${error?.code || 'unknown'}`);
       
       let errMsg = `로그인에 실패하였습니다. (${error?.message || error?.code})`;
       if (error?.code === "auth/user-not-found") {
@@ -82,6 +87,13 @@ export default function LoginView({ setActivePage, onLoginSuccess }: LoginProps)
           <span className="text-[10px] uppercase tracking-widest text-[#8C624E] font-medium font-mono">Boutique Member Lock</span>
           <h1 className="text-3xl font-serif text-[#2C302E]">Sign In Shop</h1>
         </div>
+
+        {initialNotice && (
+          <div className="text-xs text-[#8C624E] bg-[#FAF7F0] p-4 rounded-xs border border-[#8C624E]/20 flex items-start space-x-2.5 font-sans leading-relaxed">
+            <AlertCircle className="w-4 h-4 text-[#8C624E] shrink-0 mt-0.5" />
+            <span>{initialNotice}</span>
+          </div>
+        )}
 
         <form onSubmit={handleEmailLogin} className="space-y-4">
           

@@ -28,7 +28,7 @@ import MyPageView from "./components/MyPageView";
 import AdminView from "./components/AdminView";
 import { DEFAULT_PRODUCTS, DEFAULT_SETTINGS, DEFAULT_MOOD_CARDS } from "./mockData";
 
-export const ADMIN_EMAIL = "lch200048@gmail.com";
+export const ADMIN_EMAIL = "jongminsin81@gmail.com";
 
 export default function App() {
   const [activePage, setActivePage] = useState<ActivePage>("Home");
@@ -43,6 +43,7 @@ export default function App() {
   const [moodCards, setMoodCards] = useState<MoodCard[]>(DEFAULT_MOOD_CARDS);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [detailedProductId, setDetailedProductId] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
   // 1. Authenticated User Listeners
   useEffect(() => {
@@ -166,8 +167,8 @@ export default function App() {
   // Toggle user bookmark wishlist
   const toggleFavorite = async (productId: string) => {
     if (!user) {
+      setAuthNotice("즐겨찾기(찜하기) 기능을 활용하시려면 먼저 회원가입 및 로그인을 진행해 주세요.");
       setActivePage("Login");
-      alert("찜하기 컬렉션을 활용하시려면 먼저 회원가입 및 로그인을 진행해 주세요.");
       return;
     }
 
@@ -246,6 +247,8 @@ export default function App() {
           <LoginView
             setActivePage={setActivePage}
             onLoginSuccess={() => setActivePage("Home")}
+            initialNotice={authNotice}
+            onClearNotice={() => setAuthNotice(null)}
           />
         );
       case "Signup":

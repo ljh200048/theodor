@@ -3,12 +3,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
-import { ArrowLeft, Heart, ShieldCheck, Truck, Sparkles, MessageSquare, AlertCircle } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { 
+  ArrowLeft, 
+  Heart, 
+  ShieldCheck, 
+  Truck, 
+  Sparkles, 
+  MessageSquare, 
+  AlertCircle, 
+  Instagram,
+  FileText,
+  BadgeAlert,
+  Info
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ActivePage, Product, SiteSetting } from "../types";
 import { User } from "firebase/auth";
-import { collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../firebase";
 
 interface ProductDetailProps {
@@ -30,12 +42,46 @@ export default function ProductDetailView({
   settings,
   setActivePage,
 }: ProductDetailProps) {
+  const [liveProduct, setLiveProduct] = useState<Product>(product);
+  const [activeImage, setActiveImage] = useState(product.imageUrl);
   const [inquiryTitle, setInquiryTitle] = useState("");
   const [inquiryMessage, setInquiryMessage] = useState("");
   const [userName, setUserName] = useState(user?.displayName || "");
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState("");
+
+  // Keep liveProduct updated with the live Firestore document
+  useEffect(() => {
+    setLiveProduct(product);
+    setActiveImage(product.imageUrl);
+  }, [product]);
+
+  useEffect(() => {
+    const docRef = doc(db, "products", product.id);
+    const unsubscribe = onSnapshot(
+      docRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setLiveProduct({
+            id: docSnap.id,
+            ...data,
+            createdAt: data.createdAt ? data.createdAt.toDate() : new Date(),
+          } as Product);
+        }
+      },
+      (error) => {
+        console.error("Error loaded live product detail stream:", error);
+      }
+    );
+    return () => unsubscribe();
+  }, [product.id]);
+
+  // Sync active image with product main image on change
+  useEffect(() => {
+    setActiveImage(liveProduct.imageUrl);
+  }, [liveProduct.imageUrl]);
 
   const formattedPrice = (price: number) => {
     return new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW" }).format(price);
@@ -65,8 +111,8 @@ export default function ProductDetailView({
         userId: user.uid,
         userEmail: user.email || "",
         userName: userName,
-        productId: product.id,
-        productName: product.name,
+        productId: liveProduct.id,
+        productName: liveProduct.name,
         title: inquiryTitle,
         message: inquiryMessage,
         createdAt: serverTimestamp(),
@@ -83,7 +129,8 @@ export default function ProductDetailView({
     }
   };
 
-  const contactLink = settings?.contactUrl || "mailto:lch200048@gmail.com";
+  const instagram = settings?.instagramUrl || "https://instagram.com/theodor_vintage";
+  const allImages = [liveProduct.imageUrl, ...( (liveProduct as any).detailImageUrls || [] )].filter(Boolean);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -100,27 +147,48 @@ export default function ProductDetailView({
       {/* Main product representation */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
         
-        {/* Left Side: Crisp Image Card */}
-        <div className="relative aspect-3/4 overflow-hidden bg-stone-100 border border-[#FAF7F0] shadow-xs">
-          <img
-            src={product.imageUrl}
-            alt={product.name}
-            className="w-full h-full object-cover"
-            referrerPolicy="no-referrer"
-          />
+        {/* Left Side: Crisp Image Card + Gallery */}
+        <div className="space-y-4">
+          <div className="relative aspect-3/4 overflow-hidden bg-stone-100 border border-[#FAF7F0] shadow-xs">
+            <img
+              src={activeImage}
+              alt={liveProduct.name}
+              className="w-full h-full object-cover transition-all duration-300"
+              referrerPolicy="no-referrer"
+            />
 
-          {product.isSoldOut && (
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-              <span className="text-white border border-white px-6 py-2.5 text-sm tracking-widest uppercase font-mono">
-                Sold Out Collection
-              </span>
-            </div>
-          )}
+            {liveProduct.isSoldOut && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <span className="text-white border border-white px-6 py-2.5 text-sm tracking-widest uppercase font-mono bg-stone-900/40 backdrop-blur-xs">
+                  SOLD OUT COLLECTION
+                </span>
+              </div>
+            )}
 
-          {product.isRecommended && !product.isSoldOut && (
-            <div className="absolute top-4 left-4 bg-[#1A3020] text-white px-3 py-1.5 text-xs tracking-widest uppercase flex items-center space-x-1.5 font-mono">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Recommended Pick</span>
+            {liveProduct.isRecommended && !liveProduct.isSoldOut && (
+              <div className="absolute top-4 left-4 bg-[#1A3020] text-white px-3 py-1.5 text-xs tracking-widest uppercase flex items-center space-x-1.5 font-mono">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Recommended Pick</span>
+              </div>
+            )}
+          </div>
+
+          {/* Interactive Thumbnails Gallery */}
+          {allImages.length > 1 && (
+            <div className="grid grid-cols-5 gap-2">
+              {allImages.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveImage(img)}
+                  className={`aspect-square overflow-hidden border rounded-xs transition-all relative ${
+                    activeImage === img 
+                      ? "border-[#8C624E] ring-1 ring-[#8C624E]" 
+                      : "border-stone-200 opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -131,55 +199,99 @@ export default function ProductDetailView({
           {/* Header metadata */}
           <div className="space-y-3.5 border-b border-stone-200 pb-6">
             <div className="flex justify-between items-center text-xs tracking-widest uppercase text-stone-400 font-mono">
-              <span>{product.category}</span>
-              <span>Condition {product.condition.split(":")[0]}</span>
+              <span className="bg-stone-100 text-stone-600 px-2 py-0.5 rounded-sm">{liveProduct.category}</span>
+              <span>Condition: {liveProduct.condition?.split(":")[0] || "Unknown"}</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-serif text-[#2C302E] leading-tight font-medium">
-              {product.name}
-            </h1>
+            
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-1">
+              <h1 className="text-3xl sm:text-4xl font-serif text-[#2C302E] leading-tight font-medium">
+                {liveProduct.name}
+              </h1>
+              {liveProduct.isSoldOut && (
+                <span className="inline-block shrink-0 bg-red-100 text-red-800 text-xs px-2.5 py-1 rounded-sm uppercase tracking-widest font-mono font-bold border border-red-200 w-fit">
+                  SOLD OUT
+                </span>
+              )}
+            </div>
+
             <p className="text-2xl font-serif text-[#8C624E] font-semibold pt-1">
-              {formattedPrice(product.price)}
+              {formattedPrice(liveProduct.price)}
             </p>
           </div>
 
-          {/* Measurements & Conditions List */}
-          <div className="grid grid-cols-2 gap-4 bg-[#FAF7F0] p-6 border border-[#8C624E]/5 rounded-xs">
+          {/* Details / Specifications Quick List */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-[#FAF7F0] p-6 border border-[#8C624E]/5 rounded-xs">
             <div>
               <span className="text-[10px] uppercase tracking-widest text-[#2C302E]/40 block mb-1 font-mono">Tagged Size</span>
-              <span className="text-sm font-medium text-[#2C302E]">{product.size}</span>
+              <span className="text-sm font-medium text-[#2C302E]">{liveProduct.size}</span>
             </div>
             <div>
               <span className="text-[10px] uppercase tracking-widest text-[#2C302E]/40 block mb-1 font-mono">Condition Rating</span>
-              <span className="text-sm font-medium text-[#1A3020]">{product.condition}</span>
+              <span className="text-sm font-medium text-[#1A3020]">{liveProduct.condition}</span>
             </div>
+            { (liveProduct as any).material && (
+              <div className="col-span-2 sm:col-span-1">
+                <span className="text-[10px] uppercase tracking-widest text-[#2C302E]/40 block mb-1 font-mono">Material</span>
+                <span className="text-sm font-medium text-[#2C302E]">{(liveProduct as any).material}</span>
+              </div>
+            )}
           </div>
 
-          {/* Core Description Text */}
-          <div className="space-y-3">
-            <h4 className="text-xs uppercase tracking-widest text-stone-400 font-semibold font-mono">Description</h4>
-            <p className="text-stone-700 text-sm font-light leading-relaxed whitespace-pre-line">
-              {product.description}
-            </p>
+          {/* Descriptions Text */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <h4 className="text-xs uppercase tracking-widest text-[#8C624E] font-bold font-mono">Product Story</h4>
+              <p className="text-stone-700 text-sm font-light leading-relaxed whitespace-pre-line">
+                {liveProduct.description}
+              </p>
+            </div>
+
+            {/* Optional detailed description */}
+            { (liveProduct as any).detailDescription && (
+              <div className="space-y-2 border-t border-stone-100 pt-4">
+                <h4 className="text-xs uppercase tracking-widest text-[#8C624E] font-bold font-mono">상세 설명</h4>
+                <p className="text-stone-700 text-sm font-light leading-relaxed whitespace-pre-line">
+                  {(liveProduct as any).detailDescription}
+                </p>
+              </div>
+            )}
+
+            {/* Optional Measurements description */}
+            { (liveProduct as any).measurements && (
+              <div className="space-y-2 border-t border-stone-100 pt-4">
+                <h4 className="text-xs uppercase tracking-widest text-[#8C624E] font-bold font-mono">실측 사이즈</h4>
+                <div className="bg-stone-50 p-4 border border-stone-200/80 rounded-xs text-stone-700 text-xs font-mono leading-relaxed whitespace-pre-line">
+                  {(liveProduct as any).measurements}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Shipping & Handling checklist */}
-          <div className="space-y-3 border-t border-[#FAF7F0] pt-6 text-xs text-stone-500 font-light space-y-2">
-            <div className="flex items-center space-x-3">
-              <Truck className="w-4 h-4 text-[#8C624E]" />
-              <span>전국 무료 배송 혜택 &middot; 결제 완료 후 1-3일 소요 (우체국 택배)</span>
+          {/* Shipping & Notice Policies representation */}
+          <div className="space-y-3.5 border-t border-stone-100 pt-6">
+            <div className="flex items-start space-x-3 text-xs text-stone-500 font-light">
+              <Truck className="w-4 h-4 text-[#8C624E] shrink-0 mt-0.5" />
+              <div>
+                <span className="font-medium text-[#2C302E] block">배송 안내</span>
+                <span>{(liveProduct as any).shippingInfo || "전국 무료 배송 · 결제 완료 후 1-3일 소요 (우체국 택배)"}</span>
+              </div>
             </div>
-            <div className="flex items-center space-x-3">
-              <ShieldCheck className="w-4 h-4 text-[#1A3020]" />
-              <span>모든 가먼트 특수 산소 살균 및 스팀 세탁 완료</span>
+            
+            <div className="flex items-start space-x-3 text-xs text-stone-500 font-light">
+              <ShieldCheck className="w-4 h-4 text-[#1A3020] shrink-0 mt-0.5" />
+              <div>
+                <span className="font-medium text-[#2C302E] block">구매 전 안내</span>
+                <span>{(liveProduct as any).notice || "모든 아카이브 빈티지 제품들은 세탁 및 특수 스팀 고온 소독이 완료된 제품입니다."}</span>
+              </div>
             </div>
           </div>
 
           {/* Interactive Actions Panel */}
-          <div className="flex items-center space-x-4 pt-4 border-t border-stone-200">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-4 border-t border-stone-200">
             
             {/* Wishlist toggle */}
             <button
-              onClick={() => toggleFavorite(product.id)}
+              onClick={() => toggleFavorite(liveProduct.id)}
               className={`flex items-center justify-center p-4 border rounded-xs transition-colors shrink-0 focus:outline-hidden ${
                 isFavorited
                   ? "bg-red-50 border-red-200 text-red-500"
@@ -190,20 +302,36 @@ export default function ProductDetailView({
               <Heart className="w-5 h-5" fill={isFavorited ? "currentColor" : "none"} />
             </button>
 
-            {/* Inquire on Kakao/Purchase contact */}
-            <a
-              href={`${contactLink}?subject=[theodor_vintage Curation Inquiry] ${product.name}`}
+            {/* Instagram DM button */}
+            {instagram && (
+              <a
+                href={instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 text-center bg-white border border-[#2C302E] hover:bg-stone-50 text-[#2C302E] py-4 text-xs font-semibold uppercase tracking-widest transition-all flex items-center justify-center space-x-2 rounded-xs"
+              >
+                <Instagram className="w-4 h-4 text-stone-700" />
+                <span>Instagram DM Contact</span>
+              </a>
+            )}
+
+            {/* Direct inquiry trigger scroll */}
+            <button
+              onClick={() => {
+                const el = document.getElementById("qna-form-section");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }}
               className="flex-1 text-center bg-[#2C302E] hover:bg-[#8C624E] text-[#FAF7F0] py-4 text-xs font-semibold uppercase tracking-widest transition-colors block border border-[#2C302E] rounded-xs"
             >
-              Request Buying (Purchase Inquiry)
-            </a>
+              문의하기 (Send Inquiry)
+            </button>
 
           </div>
 
           {!user && (
-            <div className="text-xs text-red-700/80 bg-red-100/50 border border-red-200/50 p-3 rounded-xs flex items-center space-x-2">
-              <AlertCircle className="w-3.5 h-3.5" />
-              <span>Login or Sign up to utilize the wishlist and raise inquiries on specific items!</span>
+            <div className="text-xs text-stone-600 bg-stone-50 border border-stone-200 p-3.5 rounded-xs flex items-start space-x-2">
+              <Info className="w-4 h-4 text-[#8C624E] shrink-0 mt-0.5" />
+              <span>로그인 시 위시리스트 저장 및 상세 제품에 대한 문의 작성이 활성화됩니다.</span>
             </div>
           )}
 
@@ -211,12 +339,19 @@ export default function ProductDetailView({
 
       </div>
 
+      {/* Mandatory Vintage disclaimer notice section at bottom */}
+      <div className="mt-16 bg-stone-50 border border-stone-200/60 p-6 rounded-xs text-center max-w-4xl mx-auto">
+        <p className="text-xs text-stone-600 leading-relaxed font-serif">
+          “빈티지 상품 특성상 미세한 사용감이 있을 수 있습니다. 실측 사이즈 확인 후 구매를 권장드립니다.”
+        </p>
+      </div>
+
       {/* 4. Product Specific Inquiry Section */}
-      <div className="mt-20 border-t border-stone-200 pt-16 max-w-3xl mx-auto">
+      <div id="qna-form-section" className="mt-16 border-t border-stone-200 pt-16 max-w-3xl mx-auto">
         <div className="text-center space-y-2 mb-12">
-          <span className="text-xs uppercase tracking-widest text-[#8C624E] font-mono">Collection Q&A</span>
+          <span className="text-xs uppercase tracking-widest text-[#8C624E] font-mono font-bold">Collection Q&A</span>
           <h2 className="text-2xl font-serif text-[#2C302E]">Inquire About This Garment</h2>
-          <p className="text-xs text-stone-500 font-light">
+          <p className="text-xs text-stone-500 font-light leading-relaxed">
             의류의 실측 문의, 상세 원단감, 추가 디테일 컷 요청은 아래 문의 폼을 통해 양식을 남겨주세요.
           </p>
         </div>
