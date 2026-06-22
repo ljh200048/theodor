@@ -3,14 +3,8 @@ import React, { useState, useEffect } from "react";
 const TELEGRAM_TOKEN = "8891357091:AAE7-uXzpA8hVgJO_nhdIMWFxHTOIdOaKgE";
 const TELEGRAM_CHAT_ID = "6960362208";
 
-async function getNextOrderNumber(): Promise<number> {
-  const counterRef = doc(db, "counters", "order_counter");
-  return await runTransaction(db, async (transaction) => {
-    const snap = await transaction.get(counterRef);
-    const next = snap.exists() ? (snap.data().value as number) + 1 : 1;
-    transaction.set(counterRef, { value: next });
-    return next;
-  });
+function generateOrderNumber(): string {
+  return String(Date.now()).slice(-6);
 }
 
 async function sendTelegramNotification(order: {
@@ -53,7 +47,7 @@ import {
 import { Product, ActivePage } from "../types";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { sendOrderEmails } from "../utils/emailService";
-import { doc, setDoc, serverTimestamp, runTransaction } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 
 interface CartItem {
@@ -337,9 +331,8 @@ export default function CartView({
       });
 
       // Telegram notification
-      const orderNum1 = await getNextOrderNumber();
       await sendTelegramNotification({
-        orderNum: orderNum1,
+        orderNum: generateOrderNumber(),
         items: cartItems,
         recipientName: recipientName.trim(),
         recipientPhone: recipientPhone.trim(),
@@ -421,9 +414,8 @@ export default function CartView({
             }
 
             // Telegram notification
-            const orderNum2 = await getNextOrderNumber();
             await sendTelegramNotification({
-              orderNum: orderNum2,
+              orderNum: generateOrderNumber(),
               items: info.cartItems,
               recipientName: info.recipientName,
               recipientPhone: info.recipientPhone,
@@ -510,9 +502,8 @@ export default function CartView({
       });
 
       // Telegram notification
-      const orderNum3 = await getNextOrderNumber();
       await sendTelegramNotification({
-        orderNum: orderNum3,
+        orderNum: generateOrderNumber(),
         items: cartItems,
         recipientName: recipientName.trim(),
         recipientPhone: recipientPhone.trim(),
