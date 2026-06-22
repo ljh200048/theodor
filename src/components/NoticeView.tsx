@@ -8,13 +8,26 @@ import { AlertCircle, Calendar, ShieldCheck, HelpCircle, ChevronDown, ChevronUp,
 import { motion, AnimatePresence } from "motion/react";
 import { SiteSetting } from "../types";
 import { db } from "../firebase";
-import { collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, setDoc, serverTimestamp, runTransaction, getDoc } from "firebase/firestore";
 import { User as FirebaseUser } from "firebase/auth";
 
 interface NoticeProps {
   settings: SiteSetting | null;
   setActivePage?: (page: string) => void;
   user?: FirebaseUser | null;
+}
+
+const TELEGRAM_TOKEN = "8891357091:AAE7-uXzpA8hVgJO_nhdIMWFxHTOIdOaKgE";
+const TELEGRAM_CHAT_ID = "6960362208";
+
+async function getNextOrderNumber(): Promise<number> {
+  const counterRef = doc(db, "counters", "order_counter");
+  return await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(counterRef);
+    const next = snap.exists() ? (snap.data().value as number) + 1 : 1;
+    transaction.set(counterRef, { value: next });
+    return next;
+  });
 }
 
 export default function NoticeView({ settings, setActivePage, user }: NoticeProps) {
@@ -70,6 +83,7 @@ export default function NoticeView({ settings, setActivePage, user }: NoticeProp
     setApplyLoading(true);
     setApplyError(null);
     try {
+      const orderNum = await getNextOrderNumber();
       const newAppRef = doc(collection(db, "event_applications"));
       await setDoc(newAppRef, {
         userId: user ? user.uid : "guest",
@@ -78,8 +92,18 @@ export default function NoticeView({ settings, setActivePage, user }: NoticeProp
         phone: applicantPhone.trim(),
         size: applicantSize.trim(),
         eventTitle: settings?.eventTitle || "Special Archive Event",
+        orderNumber: orderNum,
         createdAt: serverTimestamp(),
       });
+
+      const eventName = settings?.eventTitle || "Special Archive Event";
+      const message = `🛍 새 주문!  #${orderNum}\n\n👤 ${applicantName.trim()}\n📞 ${applicantPhone.trim()}\n📦 이벤트 신청 (배송지 없음)\n\n🧾 주문 상품\n  • ${eventName} (${applicantSize.trim()}) x1  0원\n\n💰 합계: 0원`;
+      fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: message }),
+      }).catch(() => {});
+
       setApplySuccess("이벤트 신청이 안전하게 완료되었습니다! 확인 후 개별 안내해 드리겠습니다.");
       setApplicantName("");
       setApplicantPhone("");
@@ -425,3 +449,4 @@ export default function NoticeView({ settings, setActivePage, user }: NoticeProp
     </div>
   );
 }
+
