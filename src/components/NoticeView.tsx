@@ -8,7 +8,7 @@ import { AlertCircle, Calendar, ShieldCheck, HelpCircle, ChevronDown, ChevronUp,
 import { motion, AnimatePresence } from "motion/react";
 import { SiteSetting } from "../types";
 import { db } from "../firebase";
-import { collection, doc, setDoc, serverTimestamp, runTransaction, getDoc } from "firebase/firestore";
+import { collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { User as FirebaseUser } from "firebase/auth";
 
 interface NoticeProps {
@@ -20,14 +20,8 @@ interface NoticeProps {
 const TELEGRAM_TOKEN = "8891357091:AAE7-uXzpA8hVgJO_nhdIMWFxHTOIdOaKgE";
 const TELEGRAM_CHAT_ID = "6960362208";
 
-async function getNextOrderNumber(): Promise<number> {
-  const counterRef = doc(db, "counters", "order_counter");
-  return await runTransaction(db, async (transaction) => {
-    const snap = await transaction.get(counterRef);
-    const next = snap.exists() ? (snap.data().value as number) + 1 : 1;
-    transaction.set(counterRef, { value: next });
-    return next;
-  });
+function generateOrderNumber(): string {
+  return String(Date.now()).slice(-6);
 }
 
 export default function NoticeView({ settings, setActivePage, user }: NoticeProps) {
@@ -83,7 +77,7 @@ export default function NoticeView({ settings, setActivePage, user }: NoticeProp
     setApplyLoading(true);
     setApplyError(null);
     try {
-      const orderNum = await getNextOrderNumber();
+      const orderNum = generateOrderNumber();
       const newAppRef = doc(collection(db, "event_applications"));
       await setDoc(newAppRef, {
         userId: user ? user.uid : "guest",
@@ -92,7 +86,6 @@ export default function NoticeView({ settings, setActivePage, user }: NoticeProp
         phone: applicantPhone.trim(),
         size: applicantSize.trim(),
         eventTitle: settings?.eventTitle || "Special Archive Event",
-        orderNumber: orderNum,
         createdAt: serverTimestamp(),
       });
 
