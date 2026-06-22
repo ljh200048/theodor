@@ -3,18 +3,26 @@ import React, { useState, useEffect } from "react";
 const TELEGRAM_TOKEN = "8891357091:AAE7-uXzpA8hVgJO_nhdIMWFxHTOIdOaKgE";
 const TELEGRAM_CHAT_ID = "6960362208";
 
+async function getNextOrderNumber(): Promise<number> {
+  const counterRef = doc(db, "counters", "order_counter");
+  return await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(counterRef);
+    const next = snap.exists() ? (snap.data().value as number) + 1 : 1;
+    transaction.set(counterRef, { value: next });
+    return next;
+  });
+}
+
 async function sendTelegramNotification(order: {
-  orderId: string;
+  orderNum: number;
   items: { product: { name: string; price: number }; selectedSize: string; quantity: number }[];
   recipientName: string;
   recipientPhone: string;
-  recipientEmail: string;
   address: string;
   totalAmount: number;
-  paymentType: string;
 }) {
-  const itemList = order.items.map(i => `  • ${i.product.name} (${i.selectedSize}) x${i.quantity} — ₩${(i.product.price * i.quantity).toLocaleString()}`).join("\n");
-  const message = `🛍 새 주문 접수!\n━━━━━━━━━━━━━━\n주문번호: ${order.orderId}\n수령인: ${order.recipientName} (${order.recipientPhone})\n이메일: ${order.recipientEmail}\n배송지: ${order.address}\n결제수단: ${order.paymentType}\n━━━━━━━━━━━━━━\n주문상품:\n${itemList}\n━━━━━━━━━━━━━━\n총 결제금액: ₩${order.totalAmount.toLocaleString()}`;
+  const itemList = order.items.map(i => `  • ${i.product.name} (${i.selectedSize}) x${i.quantity}  ${(i.product.price * i.quantity).toLocaleString()}원`).join("\n");
+  const message = `🛍 새 주문!  #${order.orderNum}\n\n👤 ${order.recipientName}\n📞 ${order.recipientPhone}\n📦 ${order.address}\n\n🧾 주문 상품\n${itemList}\n\n💰 합계: ${order.totalAmount.toLocaleString()}원`;
   try {
     await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: "POST",
@@ -45,7 +53,7 @@ import {
 import { Product, ActivePage } from "../types";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { sendOrderEmails } from "../utils/emailService";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, runTransaction } from "firebase/firestore";
 import { db } from "../firebase";
 
 interface CartItem {
@@ -329,15 +337,14 @@ export default function CartView({
       });
 
       // Telegram notification
+      const orderNum1 = await getNextOrderNumber();
       await sendTelegramNotification({
-        orderId,
+        orderNum: orderNum1,
         items: cartItems,
         recipientName: recipientName.trim(),
         recipientPhone: recipientPhone.trim(),
-        recipientEmail,
         address: addressStr,
         totalAmount,
-        paymentType: "무통장 계좌이체",
       });
 
       // Clear cart
@@ -414,15 +421,14 @@ export default function CartView({
             }
 
             // Telegram notification
+            const orderNum2 = await getNextOrderNumber();
             await sendTelegramNotification({
-              orderId: info.orderId,
+              orderNum: orderNum2,
               items: info.cartItems,
               recipientName: info.recipientName,
               recipientPhone: info.recipientPhone,
-              recipientEmail: info.recipientEmail,
               address: info.addressStr,
               totalAmount: info.totalAmount,
-              paymentType: "토스페이먼츠 카드결제",
             });
           };
 
@@ -504,15 +510,14 @@ export default function CartView({
       });
 
       // Telegram notification
+      const orderNum3 = await getNextOrderNumber();
       await sendTelegramNotification({
-        orderId,
+        orderNum: orderNum3,
         items: cartItems,
         recipientName: recipientName.trim(),
         recipientPhone: recipientPhone.trim(),
-        recipientEmail,
         address: addressStr,
         totalAmount,
-        paymentType: "가상 데모 결제 (테스트)",
       });
 
       // Clear cart
