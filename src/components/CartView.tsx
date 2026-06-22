@@ -1,4 +1,30 @@
 import React, { useState, useEffect } from "react";
+
+const TELEGRAM_TOKEN = "8891357091:AAE7-uXzpA8hVgJO_nhdIMWFxHTOIdOaKgE";
+const TELEGRAM_CHAT_ID = "6960362208";
+
+async function sendTelegramNotification(order: {
+  orderId: string;
+  items: { product: { name: string; price: number }; selectedSize: string; quantity: number }[];
+  recipientName: string;
+  recipientPhone: string;
+  recipientEmail: string;
+  address: string;
+  totalAmount: number;
+  paymentType: string;
+}) {
+  const itemList = order.items.map(i => `  • ${i.product.name} (${i.selectedSize}) x${i.quantity} — ₩${(i.product.price * i.quantity).toLocaleString()}`).join("\n");
+  const message = `🛍 새 주문 접수!\n━━━━━━━━━━━━━━\n주문번호: ${order.orderId}\n수령인: ${order.recipientName} (${order.recipientPhone})\n이메일: ${order.recipientEmail}\n배송지: ${order.address}\n결제수단: ${order.paymentType}\n━━━━━━━━━━━━━━\n주문상품:\n${itemList}\n━━━━━━━━━━━━━━\n총 결제금액: ₩${order.totalAmount.toLocaleString()}`;
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: message }),
+    });
+  } catch (err) {
+    console.error("Telegram notification failed:", err);
+  }
+}
 import { 
   ShoppingBag, 
   Trash2, 
@@ -302,6 +328,18 @@ export default function CartView({
         paymentType: "Direct Bank Transfer"
       });
 
+      // Telegram notification
+      await sendTelegramNotification({
+        orderId,
+        items: cartItems,
+        recipientName: recipientName.trim(),
+        recipientPhone: recipientPhone.trim(),
+        recipientEmail,
+        address: addressStr,
+        totalAmount,
+        paymentType: "무통장 계좌이체",
+      });
+
       // Clear cart
       localStorage.removeItem("theodor_cart");
       setCartItems([]);
@@ -374,6 +412,18 @@ export default function CartView({
             } catch (err) {
               console.error("Callback mail dispatch failure:", err);
             }
+
+            // Telegram notification
+            await sendTelegramNotification({
+              orderId: info.orderId,
+              items: info.cartItems,
+              recipientName: info.recipientName,
+              recipientPhone: info.recipientPhone,
+              recipientEmail: info.recipientEmail,
+              address: info.addressStr,
+              totalAmount: info.totalAmount,
+              paymentType: "토스페이먼츠 카드결제",
+            });
           };
 
           syncDb();
@@ -451,6 +501,18 @@ export default function CartView({
         recipient: recipientName,
         totalAmount,
         paymentType: "Toss Payments (Iframe Simulated Success)"
+      });
+
+      // Telegram notification
+      await sendTelegramNotification({
+        orderId,
+        items: cartItems,
+        recipientName: recipientName.trim(),
+        recipientPhone: recipientPhone.trim(),
+        recipientEmail,
+        address: addressStr,
+        totalAmount,
+        paymentType: "가상 데모 결제 (테스트)",
       });
 
       // Clear cart
@@ -1206,3 +1268,4 @@ export default function CartView({
     </div>
   );
 }
+
