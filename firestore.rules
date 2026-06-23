@@ -116,14 +116,13 @@ service cloud.firestore {
 
     // Entity validator: EventApplication
     function isValidEventApplication(data) {
-      return data.userId is string
-        && data.userEmail is string
-        && data.name is string
-        && data.phone is string
-        && data.size is string
-        && data.eventTitle is string
-        && data.createdAt is timestamp
-        && (!('orderNumber' in data) || data.orderNumber is number);
+      return data.userId is string 
+        && data.userEmail is string 
+        && data.name is string 
+        && data.phone is string 
+        && data.size is string 
+        && data.eventTitle is string 
+        && data.createdAt is timestamp;
     }
 
     // Entity validator: User
@@ -303,11 +302,6 @@ service cloud.firestore {
         && incoming().consentedAt == existing().consentedAt;
     }
 
-    // Order Counter (sequential numbering)
-    match /counters/{counterId} {
-      allow read, write: if true;
-    }
-
     // Reviews
     match /reviews/{reviewId} {
       allow read: if true;
@@ -321,4 +315,3 @@ service cloud.firestore {
     }
   }
 }
-

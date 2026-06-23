@@ -1,32 +1,4 @@
 import React, { useState, useEffect } from "react";
-
-const TELEGRAM_TOKEN = "8891357091:AAE7-uXzpA8hVgJO_nhdIMWFxHTOIdOaKgE";
-const TELEGRAM_CHAT_ID = "6960362208";
-
-function generateOrderNumber(): string {
-  return String(Date.now()).slice(-6);
-}
-
-async function sendTelegramNotification(order: {
-  orderNum: number;
-  items: { product: { name: string; price: number }; selectedSize: string; quantity: number }[];
-  recipientName: string;
-  recipientPhone: string;
-  address: string;
-  totalAmount: number;
-}) {
-  const itemList = order.items.map(i => `  • ${i.product.name} (${i.selectedSize}) x${i.quantity}  ${(i.product.price * i.quantity).toLocaleString()}원`).join("\n");
-  const message = `🛍 새 주문!  #${order.orderNum}\n\n👤 ${order.recipientName}\n📞 ${order.recipientPhone}\n📦 ${order.address}\n\n🧾 주문 상품\n${itemList}\n\n💰 합계: ${order.totalAmount.toLocaleString()}원`;
-  try {
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: message }),
-    });
-  } catch (err) {
-    console.error("Telegram notification failed:", err);
-  }
-}
 import { 
   ShoppingBag, 
   Trash2, 
@@ -330,16 +302,6 @@ export default function CartView({
         paymentType: "Direct Bank Transfer"
       });
 
-      // Telegram notification
-      await sendTelegramNotification({
-        orderNum: generateOrderNumber(),
-        items: cartItems,
-        recipientName: recipientName.trim(),
-        recipientPhone: recipientPhone.trim(),
-        address: addressStr,
-        totalAmount,
-      });
-
       // Clear cart
       localStorage.removeItem("theodor_cart");
       setCartItems([]);
@@ -412,16 +374,6 @@ export default function CartView({
             } catch (err) {
               console.error("Callback mail dispatch failure:", err);
             }
-
-            // Telegram notification
-            await sendTelegramNotification({
-              orderNum: generateOrderNumber(),
-              items: info.cartItems,
-              recipientName: info.recipientName,
-              recipientPhone: info.recipientPhone,
-              address: info.addressStr,
-              totalAmount: info.totalAmount,
-            });
           };
 
           syncDb();
@@ -499,16 +451,6 @@ export default function CartView({
         recipient: recipientName,
         totalAmount,
         paymentType: "Toss Payments (Iframe Simulated Success)"
-      });
-
-      // Telegram notification
-      await sendTelegramNotification({
-        orderNum: generateOrderNumber(),
-        items: cartItems,
-        recipientName: recipientName.trim(),
-        recipientPhone: recipientPhone.trim(),
-        address: addressStr,
-        totalAmount,
       });
 
       // Clear cart
@@ -1264,4 +1206,3 @@ export default function CartView({
     </div>
   );
 }
-

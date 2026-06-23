@@ -37,10 +37,82 @@ export default function ShopView({ products, setActivePage, setDetailedProductId
 
     // Search query filter
     if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (p) => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
-      );
+      const q = search.toLowerCase().trim();
+      
+      // Brand synonyms & store-related branding words
+      const brandSynonyms = ["씨오도어", "테오도르", "theodor", "theodore", "빈티지", "vintage"];
+      const isExactBrand = brandSynonyms.includes(q);
+      
+      if (isExactBrand) {
+        // If searching precisely for the brand, display all items (do not filter out any products)
+      } else {
+        // For compound searches (e.g., "씨오도어 자켓"), clean up brand terms to isolate the core search intent
+        let parsedQuery = q;
+        brandSynonyms.forEach(syn => {
+          parsedQuery = parsedQuery.replace(syn, "").trim();
+        });
+        
+        const finalQuery = parsedQuery || q;
+        
+        result = result.filter((p) => {
+          const nameLower = p.name.toLowerCase();
+          const descLower = p.description.toLowerCase();
+          const catLower = p.category.toLowerCase();
+          
+          const matches = nameLower.includes(finalQuery) || 
+                          descLower.includes(finalQuery) ||
+                          catLower.includes(finalQuery);
+                          
+          // Korean-English product type and category terminology translations
+          let matchesKorean = false;
+          if (
+            finalQuery.includes("자켓") || 
+            finalQuery.includes("아우터") || 
+            finalQuery.includes("코트") || 
+            finalQuery.includes("블레이저") ||
+            finalQuery.includes("外套")
+          ) {
+            matchesKorean = catLower === "outerwear" || nameLower.includes("blazer") || nameLower.includes("coat") || nameLower.includes("jacket");
+          }
+          if (
+            finalQuery.includes("원피스") || 
+            finalQuery.includes("드레스") || 
+            finalQuery.includes("치마") ||
+            finalQuery.includes("스커트")
+          ) {
+            matchesKorean = catLower === "dresses" || nameLower.includes("dress") || nameLower.includes("skirt");
+          }
+          if (
+            finalQuery.includes("티") || 
+            finalQuery.includes("티셔츠") || 
+            finalQuery.includes("탑") || 
+            finalQuery.includes("상의") || 
+            finalQuery.includes("린넨") ||
+            finalQuery.includes("셔츠")
+          ) {
+            matchesKorean = catLower === "tops" || nameLower.includes("tee") || nameLower.includes("shirt") || nameLower.includes("linen") || nameLower.includes("set-up");
+          }
+          if (
+            finalQuery.includes("신발") || 
+            finalQuery.includes("부츠") || 
+            finalQuery.includes("슈즈") ||
+            finalQuery.includes("스니커즈")
+          ) {
+            matchesKorean = catLower === "shoes" || nameLower.includes("boots") || nameLower.includes("shoes") || nameLower.includes("sneakers");
+          }
+          if (
+            finalQuery.includes("악세") || 
+            finalQuery.includes("악세사리") || 
+            finalQuery.includes("목걸이") || 
+            finalQuery.includes("주얼리") || 
+            finalQuery.includes("펜던트")
+          ) {
+            matchesKorean = catLower === "accessories" || nameLower.includes("necklace") || nameLower.includes("pendant") || nameLower.includes("jewelry");
+          }
+          
+          return matches || matchesKorean;
+        });
+      }
     }
 
     // Category filter
