@@ -1,6 +1,6 @@
 {
-  "name": "theodor_vintage",
-  "description": "Curated vintage pieces for your own mood.",
+  "name": "씨오도르",
+  "description": "감도 있는 빈티지 의류를 소개하는 온라인 빈티지샵 씨오도르입니다.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
