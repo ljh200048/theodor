@@ -23,7 +23,7 @@ export default function ShopView({ products, setActivePage, setDetailedProductId
   const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">("newest");
 
   // Filter Categories
-  const categories = ["All", "Tops", "Bottoms", "Dresses", "Outerwear", "Accessories", "Shoes"];
+  const categories = ["All", "Tops", "Bottons", "Dresses", "Outerwear", "Accessories", "Shoes"];
   // Filter Conditions
   const conditions = [
     { value: "All", label: "All Grades" },
@@ -121,7 +121,7 @@ export default function ShopView({ products, setActivePage, setDetailedProductId
             finalQuery.includes("스커트") ||
             finalQuery.includes("치마")
           ) {
-            matchesKorean = catLower === "bottoms" || catLower === "bottons" || nameLower.includes("pants") || nameLower.includes("trousers") || nameLower.includes("shorts") || nameLower.includes("denim") || nameLower.includes("jeans") || nameLower.includes("slacks") || nameLower.includes("skirt");
+            matchesKorean = catLower === "bottons" || catLower === "bottoms" || nameLower.includes("pants") || nameLower.includes("trousers") || nameLower.includes("shorts") || nameLower.includes("denim") || nameLower.includes("jeans") || nameLower.includes("slacks") || nameLower.includes("skirt");
           }
           
           return matches || matchesKorean;
@@ -134,8 +134,8 @@ export default function ShopView({ products, setActivePage, setDetailedProductId
       result = result.filter((p) => {
         const catLower = p.category.toLowerCase();
         const selLower = selectedCategory.toLowerCase();
-        if (selLower === "bottoms" || selLower === "bottons") {
-          return catLower === "bottoms" || catLower === "bottons";
+        if (selLower === "bottons" || selLower === "bottoms") {
+          return catLower === "bottons" || catLower === "bottoms";
         }
         return catLower === selLower;
       });

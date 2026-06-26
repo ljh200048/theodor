@@ -80,7 +80,7 @@ export default function ProductDetailView({
 
   const handleAddToCart = () => {
     setSizeError("");
-    const isSizeSelectionCategory = ["tops", "bottoms", "bottons", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
+    const isSizeSelectionCategory = ["tops", "bottons", "bottoms", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
     const isShoesCategory = liveProduct.category.toLowerCase() === "shoes";
 
     if (isSizeSelectionCategory && !selectedSize) {
@@ -124,7 +124,7 @@ export default function ProductDetailView({
 
   const handleBuyNow = () => {
     setSizeError("");
-    const isSizeSelectionCategory = ["tops", "bottoms", "bottons", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
+    const isSizeSelectionCategory = ["tops", "bottons", "bottoms", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
     const isShoesCategory = liveProduct.category.toLowerCase() === "shoes";
 
     if (isSizeSelectionCategory && !selectedSize) {
@@ -245,7 +245,7 @@ export default function ProductDetailView({
   };
 
   const handleOrderClick = () => {
-    const isSizeSelectionCategory = ["tops", "bottoms", "bottons", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
+    const isSizeSelectionCategory = ["tops", "bottons", "bottoms", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
     const isShoesCategory = liveProduct.category.toLowerCase() === "shoes";
 
     if (isSizeSelectionCategory && !selectedSize) {
@@ -301,7 +301,7 @@ export default function ProductDetailView({
       }
 
       // 1. Create order document in orders collection
-      const isSizeSelectionCategory = ["tops", "bottoms", "bottons", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
+      const isSizeSelectionCategory = ["tops", "bottons", "bottoms", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
       const isShoesCategory = liveProduct.category.toLowerCase() === "shoes";
       const chosenSize = ((isSizeSelectionCategory || isShoesCategory) && selectedSize) ? selectedSize : liveProduct.size;
       
@@ -367,7 +367,7 @@ export default function ProductDetailView({
 
   const instagram = settings?.instagramUrl || "https://instagram.com/theodor_vintage";
   const allImages = [liveProduct.imageUrl, ...( (liveProduct as any).detailImageUrls || [] )].filter(Boolean);
-  const isSizeSelectionCategory = ["tops", "bottoms", "bottons", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
+  const isSizeSelectionCategory = ["tops", "bottons", "bottoms", "dresses", "outerwear"].includes(liveProduct.category.toLowerCase());
   const isShoesCategory = liveProduct.category.toLowerCase() === "shoes";
 
   return (
@@ -944,7 +944,7 @@ export default function ProductDetailView({
                       </div>
                       <div className="flex justify-between">
                         <span className="text-stone-400">Selected Size:</span>
-                        <span className="text-stone-700 font-medium font-bold">{(["tops", "bottoms", "bottons", "dresses", "outerwear", "shoes"].includes(liveProduct.category.toLowerCase()) && selectedSize) ? `${selectedSize}` : liveProduct.size}</span>
+                        <span className="text-stone-700 font-medium font-bold">{(["tops", "bottons", "bottoms", "dresses", "outerwear", "shoes"].includes(liveProduct.category.toLowerCase()) && selectedSize) ? `${selectedSize}` : liveProduct.size}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-stone-400">Ordered Product:</span>
@@ -975,7 +975,7 @@ export default function ProductDetailView({
                         <span className="text-[9px] uppercase font-mono tracking-widest text-[#8C624E]">Selected Archive Collection</span>
                         <h4 className="text-sm font-serif font-semibold text-[#2C302E] truncate mt-0.5">{liveProduct.name}</h4>
                         <div className="text-[10px] text-stone-400 font-mono mt-0.5">
-                          Size Tag: <span className="text-stone-600 font-semibold">{(["tops", "bottoms", "bottons", "dresses", "outerwear", "shoes"].includes(liveProduct.category.toLowerCase()) && selectedSize) ? `${selectedSize} (Selected)` : liveProduct.size}</span> &middot; Price: <span className="text-amber-800 font-semibold">{formattedPrice(liveProduct.price)}</span>
+                          Size Tag: <span className="text-stone-600 font-semibold">{(["tops", "bottons", "bottoms", "dresses", "outerwear", "shoes"].includes(liveProduct.category.toLowerCase()) && selectedSize) ? `${selectedSize} (Selected)` : liveProduct.size}</span> &middot; Price: <span className="text-amber-800 font-semibold">{formattedPrice(liveProduct.price)}</span>
                         </div>
                       </div>
                     </div>
