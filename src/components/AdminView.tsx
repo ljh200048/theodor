@@ -197,7 +197,7 @@ export default function AdminView({ products, settings, moodCards, user }: Admin
   const [productSaving, setProductSaving] = useState(false);
 
   // Categories and Conditions variables
-  const categories = ["Tops", "Dresses", "Outerwear", "Accessories", "Shoes"];
+  const categories = ["Tops", "Bottoms", "Bottons", "Dresses", "Outerwear", "Accessories", "Shoes"];
   const conditions = ["S: Mint Condition", "A: Excellent Vintage", "B: Nicely Faded Charm", "C: Heavy Aged Vibe"];
 
   // MoodCard form states

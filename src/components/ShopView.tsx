@@ -23,7 +23,7 @@ export default function ShopView({ products, setActivePage, setDetailedProductId
   const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">("newest");
 
   // Filter Categories
-  const categories = ["All", "Tops", "Dresses", "Outerwear", "Accessories", "Shoes"];
+  const categories = ["All", "Tops", "Bottoms", "Dresses", "Outerwear", "Accessories", "Shoes"];
   // Filter Conditions
   const conditions = [
     { value: "All", label: "All Grades" },
@@ -109,6 +109,20 @@ export default function ShopView({ products, setActivePage, setDetailedProductId
           ) {
             matchesKorean = catLower === "accessories" || nameLower.includes("necklace") || nameLower.includes("pendant") || nameLower.includes("jewelry");
           }
+          if (
+            finalQuery.includes("바지") || 
+            finalQuery.includes("팬츠") || 
+            finalQuery.includes("하의") || 
+            finalQuery.includes("슬랙스") || 
+            finalQuery.includes("데님") || 
+            finalQuery.includes("청바지") || 
+            finalQuery.includes("쇼츠") || 
+            finalQuery.includes("반바지") ||
+            finalQuery.includes("스커트") ||
+            finalQuery.includes("치마")
+          ) {
+            matchesKorean = catLower === "bottoms" || catLower === "bottons" || nameLower.includes("pants") || nameLower.includes("trousers") || nameLower.includes("shorts") || nameLower.includes("denim") || nameLower.includes("jeans") || nameLower.includes("slacks") || nameLower.includes("skirt");
+          }
           
           return matches || matchesKorean;
         });
@@ -117,7 +131,14 @@ export default function ShopView({ products, setActivePage, setDetailedProductId
 
     // Category filter
     if (selectedCategory !== "All") {
-      result = result.filter((p) => p.category.toLowerCase() === selectedCategory.toLowerCase());
+      result = result.filter((p) => {
+        const catLower = p.category.toLowerCase();
+        const selLower = selectedCategory.toLowerCase();
+        if (selLower === "bottoms" || selLower === "bottons") {
+          return catLower === "bottoms" || catLower === "bottons";
+        }
+        return catLower === selLower;
+      });
     }
 
     // Condition grade filter
